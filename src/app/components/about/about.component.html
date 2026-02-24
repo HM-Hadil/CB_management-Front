@@ -1,0 +1,113 @@
+<!-- Page Header -->
+<div class="page-header">
+  <div class="page-header__bg"></div>
+  <div class="container page-header__content">
+    <span class="section-label">Qui sommes-nous</span>
+    <h1 class="page-title">À <span class="gold-text">Propos</span> de Nous</h1>
+    <p class="page-subtitle">L'histoire d'une passion pour la beauté et l'élégance</p>
+    <nav class="breadcrumb">
+      <a routerLink="/">Accueil</a>
+      <i class="pi pi-angle-right"></i>
+      <span>À Propos</span>
+    </nav>
+  </div>
+</div>
+
+<!-- Story Section -->
+<section class="story-section section-padding">
+  <div class="container">
+    <div class="story-grid">
+      <div class="story-images">
+        <div class="story-img story-img--main">
+          <img src="assets/images/salon-reception.jpg" alt="Notre réception" />
+        </div>
+        <div class="story-img story-img--accent">
+          <img src="assets/images/salon-lounge.jpg" alt="Notre salon" />
+        </div>
+        <div class="story-years-badge">
+          <span class="years-number">8+</span>
+          <span class="years-text">Années<br/>d'Excellence</span>
+        </div>
+      </div>
+      <div class="story-content">
+        <span class="section-label" style="text-align:left;">Notre Histoire</span>
+        <h2 class="section-title" style="text-align:left;">
+          Née d'une <span>Passion</span><br/>pour la Beauté
+        </h2>
+        <p style="color: var(--text-medium); font-size: 1rem; line-height:1.9; margin-bottom:1rem;">
+          Al-Ghanja Bride & Spa est née d'un rêve : créer un espace de beauté où chaque femme se sent 
+          unique, précieuse et magnifique. Fondée il y a plus de 8 ans à Gabès, notre maison de beauté 
+          est rapidement devenue une référence incontournable.
+        </p>
+        <p style="color: var(--text-medium); font-size: 1rem; line-height:1.9; margin-bottom:2rem;">
+          Spécialisée dans les soins pour mariées, nous avons accompagné des centaines de femmes 
+          lors de leurs plus beaux moments. Notre cadre luxueux, notre équipe experte et notre 
+          engagement envers l'excellence font d'Al-Ghanja bien plus qu'un centre beauté — c'est un 
+          véritable sanctuaire de féminité.
+        </p>
+        <div class="story-values">
+          <div class="value-item">
+            <div class="value-icon"><i class="pi pi-heart-fill"></i></div>
+            <div>
+              <strong>Passion</strong>
+              <p>Chaque geste est accompli avec amour et dévouement</p>
+            </div>
+          </div>
+          <div class="value-item">
+            <div class="value-icon"><i class="pi pi-verified"></i></div>
+            <div>
+              <strong>Excellence</strong>
+              <p>Nous n'acceptons que le meilleur pour nos clientes</p>
+            </div>
+          </div>
+          <div class="value-item">
+            <div class="value-icon"><i class="pi pi-users"></i></div>
+            <div>
+              <strong>Confiance</strong>
+              <p>Bâtir des relations durables basées sur la sincérité</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Team Section -->
+<section class="team-section section-padding" style="background: var(--rose-50);">
+  <div class="container">
+    <span class="section-label">Notre Équipe</span>
+    <h2 class="section-title">Des Expertes à <span>Votre Service</span></h2>
+    <p class="section-subtitle">
+      Notre équipe de 15+ professionnelles certifiées met son talent et son expertise à votre disposition.
+    </p>
+    <div class="team-grid">
+      @for (member of team; track member.name) {
+        <div class="team-card">
+          <div class="team-avatar">
+            <span>{{ member.name.charAt(0) }}{{ member.name.split(' ')[1]?.charAt(0) }}</span>
+          </div>
+          <h3>{{ member.name }}</h3>
+          <span class="team-role">{{ member.role }}</span>
+          <p class="team-exp">{{ member.exp }}</p>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="about-cta section-padding">
+  <div class="container" style="text-align:center;">
+    <h2 class="section-title">Prête à nous <span>rencontrer</span> ?</h2>
+    <p class="section-subtitle">Venez découvrir notre univers et laissez-nous prendre soin de vous.</p>
+    <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+      <a routerLink="/contact" class="btn-primary">
+        <i class="pi pi-map-marker"></i> Nous trouver
+      </a>
+      <a routerLink="/register" class="btn-outline">
+        <i class="pi pi-calendar-plus"></i> Réserver
+      </a>
+    </div>
+  </div>
+</section>

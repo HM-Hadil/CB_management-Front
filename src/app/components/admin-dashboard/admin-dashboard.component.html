@@ -1,0 +1,474 @@
+<div class="admin-layout">
+
+  <!-- ══ SIDEBAR ════════════════════════════════════════════════ -->
+  <aside class="sidebar" [class.open]="sidebarOpen()">
+    <div class="sidebar__logo">
+      <div class="logo-icon"><span>الغنجة</span></div>
+      <div class="logo-info">
+        <strong>Al-Ghanja</strong>
+        <span>Administration</span>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav">
+      <button class="nav-item active" (click)="setTab('all')">
+        <i class="pi pi-users"></i>
+        <span>Tout le staff</span>
+        <span class="nav-badge">{{ users().length }}</span>
+      </button>
+      <button class="nav-item" (click)="setTab('employees')">
+        <i class="pi pi-briefcase"></i>
+        <span>Employées</span>
+        <span class="nav-badge">{{ totalEmployees() }}</span>
+      </button>
+      <button class="nav-item" (click)="setTab('receptionists')">
+        <i class="pi pi-desktop"></i>
+        <span>Réceptionnistes</span>
+        <span class="nav-badge">{{ totalReception() }}</span>
+      </button>
+    </nav>
+
+    <div class="sidebar__user">
+      <div class="user-avatar">
+        {{ currentAdmin()?.prenom?.charAt(0) }}{{ currentAdmin()?.nom?.charAt(0) }}
+      </div>
+      <div class="user-info">
+        <strong>{{ currentAdmin()?.prenom }} {{ currentAdmin()?.nom }}</strong>
+        <span>Administrateur</span>
+      </div>
+      <button class="logout-btn" (click)="logout()" title="Déconnexion">
+        <i class="pi pi-sign-out"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN CONTENT ═══════════════════════════════════════════ -->
+  <main class="main-content">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar__left">
+        <button class="menu-toggle" (click)="sidebarOpen.set(!sidebarOpen())">
+          <i class="pi pi-bars"></i>
+        </button>
+        <div>
+          <h1 class="page-title">Gestion du Personnel</h1>
+          <p class="page-sub">Gérez les comptes employés et réceptionnistes</p>
+        </div>
+      </div>
+      <button class="btn-create" (click)="openCreateModal()">
+        <i class="pi pi-user-plus"></i>
+        Créer un compte
+      </button>
+    </header>
+
+    <!-- Stats cards -->
+    <div class="stats-row">
+      <div class="stat-card stat-card--gold">
+        <div class="stat-card__icon"><i class="pi pi-users"></i></div>
+        <div class="stat-card__info">
+          <span class="stat-card__value">{{ users().length }}</span>
+          <span class="stat-card__label">Total Staff</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card--rose">
+        <div class="stat-card__icon"><i class="pi pi-briefcase"></i></div>
+        <div class="stat-card__info">
+          <span class="stat-card__value">{{ totalEmployees() }}</span>
+          <span class="stat-card__label">Employées</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card--purple">
+        <div class="stat-card__icon"><i class="pi pi-desktop"></i></div>
+        <div class="stat-card__info">
+          <span class="stat-card__value">{{ totalReception() }}</span>
+          <span class="stat-card__label">Réceptionnistes</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card--green">
+        <div class="stat-card__icon"><i class="pi pi-check-circle"></i></div>
+        <div class="stat-card__info">
+          <span class="stat-card__value">{{ totalActive() }}</span>
+          <span class="stat-card__label">Comptes actifs</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters & Search -->
+   <div class="table-controls">
+  <div class="tab-group">
+    <button class="tab-btn" [class.active]="activeTab()==='all'" (click)="setTab('all')">
+      Tous
+    </button>
+    <button class="tab-btn" [class.active]="activeTab()==='employees'" (click)="setTab('employees')">
+      <i class="pi pi-briefcase"></i> Employées
+    </button>
+    <button class="tab-btn" [class.active]="activeTab()==='receptionists'" (click)="setTab('receptionists')">
+      <i class="pi pi-desktop"></i> Réceptionnistes
+    </button>
+  </div>
+
+  <div class="controls-right">
+    <!-- Bouton contextuel selon l'onglet -->
+    @if (activeTab() === 'employees') {
+      <button class="btn-create btn-create--rose" (click)="openCreateModal(Role.EMPLOYEE)">
+        <i class="pi pi-user-plus"></i> Nouvelle Employée
+      </button>
+    }
+    @if (activeTab() === 'receptionists') {
+      <button class="btn-create btn-create--purple" (click)="openCreateModal(Role.RECEPTIONIST)">
+        <i class="pi pi-user-plus"></i> Nouvelle Réceptionniste
+      </button>
+    }
+    @if (activeTab() === 'all') {
+      <button class="btn-create" (click)="openCreateModal()">
+        <i class="pi pi-user-plus"></i> Créer un compte
+      </button>
+    }
+
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input
+        type="text"
+        placeholder="Rechercher..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+      />
+      @if (searchQuery()) {
+        <button class="clear-search" (click)="searchQuery.set('')">
+          <i class="pi pi-times"></i>
+        </button>
+      }
+    </div>
+  </div>
+</div>
+
+    <!-- Table -->
+    <div class="table-card">
+      @if (loading()) {
+        <div class="table-loader">
+          <i class="pi pi-spin pi-spinner"></i>
+          <span>Chargement...</span>
+        </div>
+      } @else if (filteredUsers().length === 0) {
+        <div class="table-empty">
+          <div class="empty-icon">👥</div>
+          <h3>Aucun compte trouvé</h3>
+          <p>{{ searchQuery() ? 'Aucun résultat pour votre recherche.' : 'Créez le premier compte pour commencer.' }}</p>
+          @if (!searchQuery()) {
+            <button class="btn-create" (click)="openCreateModal()">
+              <i class="pi pi-user-plus"></i> Créer un compte
+            </button>
+          }
+        </div>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Membre</th>
+              <th>Contact</th>
+              <th>Rôle</th>
+              <th>Spécialité</th>
+              <th>Expérience</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of filteredUsers(); track user.id) {
+              <tr [class.inactive-row]="!user.activated">
+                <!-- Membre -->
+                <td>
+                  <div class="user-cell">
+                    <div class="user-avatar-sm" [class]="'avatar-' + user.role.toLowerCase()">
+                      {{ getInitials(user) }}
+                    </div>
+                    <div>
+                      <span class="user-name">{{ user.prenom }} {{ user.nom }}</span>
+                      <span class="user-email">{{ user.email }}</span>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Contact -->
+                <td>
+                  <span class="cell-phone">
+                    <i class="pi pi-phone"></i>
+                    {{ user.telephone || '—' }}
+                  </span>
+                </td>
+
+                <!-- Rôle -->
+                <td>
+                  <span class="role-badge" [class]="'role-' + user.role.toLowerCase()">
+                    <i class="pi {{ getRoleIcon(user.role) }}"></i>
+                    {{ getRoleLabel(user.role) }}
+                  </span>
+                </td>
+
+                <!-- Spécialité -->
+                <td>
+                  @if (user.specialite) {
+                    <span class="specialite-badge">{{ user.specialite }}</span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+
+                <!-- Expérience -->
+                <td>
+                  @if (user.nombresExperiences !== null && user.nombresExperiences !== undefined) {
+                    <span class="exp-badge">
+                      <i class="pi pi-clock"></i>
+                      {{ user.nombresExperiences }} ans
+                    </span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+
+                <!-- Statut -->
+                <td>
+                  <button
+                    class="status-toggle"
+                    [class.active]="user.activated"
+                    (click)="toggleActivation(user)"
+                    [title]="user.activated ? 'Désactiver' : 'Activer'"
+                  >
+                    <span class="status-dot"></span>
+                    {{ user.activated ? 'Actif' : 'Inactif' }}
+                  </button>
+                </td>
+
+                <!-- Actions -->
+                <td>
+                  <div class="action-btns">
+                    <button class="action-btn edit" (click)="openEditModal(user)" title="Modifier">
+                      <i class="pi pi-pencil"></i>
+                    </button>
+                    <button class="action-btn delete" (click)="confirmDelete(user.id)" title="Supprimer">
+                      <i class="pi pi-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Delete confirm row -->
+              @if (deleteConfirmId() === user.id) {
+                <tr class="confirm-row">
+                  <td colspan="7">
+                    <div class="confirm-delete">
+                      <i class="pi pi-exclamation-triangle"></i>
+                      <span>Supprimer définitivement <strong>{{ user.prenom }} {{ user.nom }}</strong> ?</span>
+                      <div class="confirm-actions">
+                        <button class="confirm-yes" (click)="deleteUser(user.id)">
+                          <i class="pi pi-check"></i> Supprimer
+                        </button>
+                        <button class="confirm-no" (click)="cancelDelete()">
+                          <i class="pi pi-times"></i> Annuler
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+  </main>
+</div>
+
+<!-- ══ MODAL ════════════════════════════════════════════════════ -->
+@if (showModal()) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <div class="modal__header">
+        <div class="modal__icon">
+          <i class="pi {{ modalMode() === 'create' ? 'pi-user-plus' : 'pi-pencil' }}"></i>
+        </div>
+        <div>
+          <h2>{{ modalMode() === 'create' ? 'Créer un compte' : 'Modifier le profil' }}</h2>
+          <p>{{ modalMode() === 'create' ? 'Le compte sera activé immédiatement' : 'Modifiez les informations du membre' }}</p>
+        </div>
+        <button class="modal__close" (click)="closeModal()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal__body">
+
+        @if (modalMode() === 'create') {
+          <!-- ── CREATE FORM ─────────────────────────── -->
+
+          <!-- Role selector -->
+          <div class="modal-role-selector">
+            <button type="button"
+              class="modal-role-btn"
+              [class.active]="form.role === Role.EMPLOYEE"
+              (click)="form.role = Role.EMPLOYEE"
+            >
+              <i class="pi pi-briefcase"></i>
+              Employée
+            </button>
+            <button type="button"
+              class="modal-role-btn"
+              [class.active]="form.role === Role.RECEPTIONIST"
+              (click)="form.role = Role.RECEPTIONIST"
+            >
+              <i class="pi pi-desktop"></i>
+              Réceptionniste
+            </button>
+          </div>
+
+          <div class="modal-form-grid">
+            <div class="modal-form-group">
+              <label>Prénom *</label>
+              <input type="text" [(ngModel)]="form.prenom" class="modal-input" placeholder="Prénom" />
+            </div>
+            <div class="modal-form-group">
+              <label>Nom *</label>
+              <input type="text" [(ngModel)]="form.nom" class="modal-input" placeholder="Nom" />
+            </div>
+          </div>
+
+          <div class="modal-form-group">
+            <label>Email *</label>
+            <input type="email" [(ngModel)]="form.email" class="modal-input" placeholder="email@exemple.com" />
+          </div>
+
+          <div class="modal-form-group">
+            <label>Téléphone</label>
+            <input type="tel" [(ngModel)]="form.telephone" class="modal-input" placeholder="+216 xx xxx xxx" />
+          </div>
+
+          <div class="modal-form-grid">
+            <div class="modal-form-group">
+              <label>Mot de passe *</label>
+              <div class="modal-input-toggle">
+                <input [type]="showPassword() ? 'text' : 'password'"
+                  [(ngModel)]="form.password" class="modal-input" placeholder="Min. 6 caractères" />
+                <button type="button" (click)="showPassword.set(!showPassword())">
+                  <i [class]="'pi ' + (showPassword() ? 'pi-eye-slash' : 'pi-eye')"></i>
+                </button>
+              </div>
+            </div>
+            <div class="modal-form-group">
+              <label>Confirmer *</label>
+              <input [type]="showPassword() ? 'text' : 'password'"
+                [(ngModel)]="form.confirmPassword" class="modal-input" placeholder="Répéter" />
+            </div>
+          </div>
+
+        } @else {
+          <!-- ── EDIT FORM ───────────────────────────── -->
+
+          <div class="modal-role-selector">
+            <button type="button"
+              class="modal-role-btn"
+              [class.active]="editForm.role === Role.EMPLOYEE"
+              (click)="editForm.role = Role.EMPLOYEE"
+            >
+              <i class="pi pi-briefcase"></i> Employée
+            </button>
+            <button type="button"
+              class="modal-role-btn"
+              [class.active]="editForm.role === Role.RECEPTIONIST"
+              (click)="editForm.role = Role.RECEPTIONIST"
+            >
+              <i class="pi pi-desktop"></i> Réceptionniste
+            </button>
+          </div>
+
+          <div class="modal-form-grid">
+            <div class="modal-form-group">
+              <label>Prénom *</label>
+              <input type="text" [(ngModel)]="editForm.prenom" class="modal-input" />
+            </div>
+            <div class="modal-form-group">
+              <label>Nom *</label>
+              <input type="text" [(ngModel)]="editForm.nom" class="modal-input" />
+            </div>
+          </div>
+
+          <div class="modal-form-group">
+            <label>Email *</label>
+            <input type="email" [(ngModel)]="editForm.email" class="modal-input" />
+          </div>
+
+          <div class="modal-form-group">
+            <label>Téléphone</label>
+            <input type="tel" [(ngModel)]="editForm.telephone" class="modal-input" />
+          </div>
+
+          @if (isEmployeeEdit()) {
+            <div class="modal-form-grid employee-fields">
+              <div class="modal-form-group">
+                <label>Spécialité</label>
+                <select [(ngModel)]="editForm.specialite" class="modal-input modal-select">
+                  <option value="">Choisir...</option>
+                  @for (sp of specialites; track sp) {
+                    <option [value]="sp">{{ sp }}</option>
+                  }
+                </select>
+              </div>
+              <div class="modal-form-group">
+                <label>Années d'expérience</label>
+                <input type="number" [(ngModel)]="editForm.nombresExperiences" class="modal-input" min="0" max="50" />
+              </div>
+            </div>
+          }
+
+          <div class="modal-form-group">
+            <label>Nouveau mot de passe <span class="optional">(laisser vide pour ne pas modifier)</span></label>
+            <div class="modal-input-toggle">
+              <input [type]="showPassword() ? 'text' : 'password'"
+                [(ngModel)]="editForm.password" class="modal-input" placeholder="Min. 6 caractères" />
+              <button type="button" (click)="showPassword.set(!showPassword())">
+                <i [class]="'pi ' + (showPassword() ? 'pi-eye-slash' : 'pi-eye')"></i>
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (modalError()) {
+          <div class="modal-error">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ modalError() }}
+          </div>
+        }
+      </div>
+
+      <div class="modal__footer">
+        <button class="modal-btn-cancel" (click)="closeModal()" [disabled]="modalLoading()">
+          Annuler
+        </button>
+        <button
+          class="modal-btn-submit"
+          [disabled]="modalLoading()"
+          (click)="modalMode() === 'create' ? submitCreate() : submitEdit()"
+        >
+          @if (modalLoading()) {
+            <i class="pi pi-spin pi-spinner"></i> En cours...
+          } @else if (modalMode() === 'create') {
+            <i class="pi pi-check"></i> Créer le compte
+          } @else {
+            <i class="pi pi-check"></i> Sauvegarder
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══ TOAST ════════════════════════════════════════════════════ -->
+@if (toastMessage()) {
+  <div class="toast" [class]="'toast--' + toastType()">
+    <i class="pi {{ toastType() === 'success' ? 'pi-check-circle' : 'pi-exclamation-circle' }}"></i>
+    {{ toastMessage() }}
+  </div>
+}

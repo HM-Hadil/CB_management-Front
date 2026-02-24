@@ -1,1 +1,374 @@
-/* You can add global styles to this file, and also import other style files */
+/* =============================================
+   AL-GHANJA BRIDE & SPA - Global Styles
+   Palette: Rose & Gold Luxe
+   ============================================= */
+
+// ---- CSS Variables ----
+:root {
+  --rose-50: #fdf2f5;
+  --rose-100: #fce7ee;
+  --rose-200: #f8c9d8;
+  --rose-300: #f4a7bf;
+  --rose-400: #ed7fa2;
+  --rose-500: #e05a84;
+  --rose-600: #c9426b;
+  --rose-700: #a83358;
+  --rose-800: #8a2847;
+  --rose-900: #5c1830;
+
+  --gold-50: #fdf9ee;
+  --gold-100: #faf0d0;
+  --gold-200: #f4e0a1;
+  --gold-300: #eece72;
+  --gold-400: #e8b84b;
+  --gold-500: #d4a017;
+  --gold-600: #b8860b;
+  --gold-700: #9a6f0a;
+  --gold-800: #7c5908;
+  --gold-900: #5e4306;
+
+  --cream: #faf5f0;
+  --white: #ffffff;
+  --text-dark: #2c1a1a;
+  --text-medium: #5c3a3a;
+  --text-light: #9a7070;
+
+  --gradient-rose-gold: linear-gradient(135deg, #f8c9d8 0%, #e8b84b 50%, #f4a7bf 100%);
+  --gradient-gold: linear-gradient(135deg, #e8b84b 0%, #d4a017 50%, #b8860b 100%);
+  --gradient-rose: linear-gradient(135deg, #f8c9d8 0%, #e05a84 100%);
+  --gradient-hero: linear-gradient(160deg, rgba(250, 245, 240, 0.95) 0%, rgba(253, 242, 245, 0.9) 40%, rgba(248, 201, 216, 0.4) 100%);
+
+  --shadow-gold: 0 4px 20px rgba(212, 160, 23, 0.25);
+  --shadow-rose: 0 4px 20px rgba(224, 90, 132, 0.2);
+  --shadow-card: 0 8px 40px rgba(44, 26, 26, 0.1);
+  --shadow-hover: 0 16px 50px rgba(44, 26, 26, 0.15);
+
+  --border-radius-sm: 8px;
+  --border-radius-md: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-xl: 40px;
+  --border-radius-full: 9999px;
+
+  --font-display: 'Cormorant Garamond', serif;
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Montserrat', sans-serif;
+
+  --transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// ---- Reset & Base ----
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  background-color: var(--cream);
+  color: var(--text-dark);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  margin: 0;
+  line-height: 1.2;
+}
+
+p { margin: 0; }
+
+a {
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+// ---- Utility Classes ----
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 2rem;
+
+  @media (max-width: 768px) {
+    padding: 0 1rem;
+  }
+}
+
+.section-padding {
+  padding: 100px 0;
+
+  @media (max-width: 768px) {
+    padding: 60px 0;
+  }
+}
+
+// ---- Gold Ornament Divider ----
+.gold-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem auto;
+  width: fit-content;
+
+  span {
+    display: block;
+    height: 1px;
+    width: 60px;
+    background: var(--gradient-gold);
+  }
+
+  i {
+    color: var(--gold-500);
+    font-size: 0.9rem;
+  }
+}
+
+// ---- Section Label ----
+.section-label {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold-600);
+  display: block;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+// ---- Section Title ----
+.section-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  color: var(--text-dark);
+  text-align: center;
+  margin-bottom: 1rem;
+
+  span {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+.section-subtitle {
+  font-size: 1rem;
+  color: var(--text-light);
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 3rem;
+  line-height: 1.8;
+}
+
+// ---- Buttons ----
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 2.25rem;
+  background: var(--gradient-gold);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-full);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-gold);
+  text-transform: uppercase;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(212, 160, 23, 0.45);
+  }
+
+  &:active { transform: translateY(0); }
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 2.25rem;
+  background: transparent;
+  color: var(--rose-600);
+  border: 2px solid var(--rose-300);
+  border-radius: var(--border-radius-full);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: var(--transition);
+  text-transform: uppercase;
+
+  &:hover {
+    background: var(--rose-50);
+    border-color: var(--rose-500);
+    transform: translateY(-2px);
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--gold-600);
+  border: none;
+  border-radius: var(--border-radius-full);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+
+  &:hover {
+    background: var(--gold-50);
+    color: var(--gold-700);
+  }
+}
+
+// ---- Card Base ----
+.luxury-card {
+  background: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: var(--transition);
+
+  &:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-4px);
+  }
+}
+
+// ---- Input Styles ----
+.luxury-input {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  background: var(--rose-50);
+  border: 1.5px solid var(--rose-200);
+  border-radius: var(--border-radius-md);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-dark);
+  transition: var(--transition);
+  outline: none;
+
+  &::placeholder { color: var(--text-light); }
+
+  &:focus {
+    border-color: var(--gold-400);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.1);
+  }
+}
+
+// ---- Animations ----
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(212, 160, 23, 0); }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.7s ease forwards;
+}
+
+.animate-delay-1 { animation-delay: 0.1s; }
+.animate-delay-2 { animation-delay: 0.2s; }
+.animate-delay-3 { animation-delay: 0.3s; }
+.animate-delay-4 { animation-delay: 0.4s; }
+
+// ---- Gold Shine Text ----
+.gold-text {
+  background: var(--gradient-gold);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.rose-text {
+  color: var(--rose-600);
+}
+
+// ---- Scrollbar ----
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--rose-50);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gradient-gold);
+  border-radius: 4px;
+}
+
+// ---- PrimeNG Overrides ----
+.p-inputtext {
+  font-family: var(--font-body) !important;
+  border-radius: var(--border-radius-md) !important;
+  border-color: var(--rose-200) !important;
+
+  &:focus {
+    border-color: var(--gold-400) !important;
+    box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.1) !important;
+  }
+}
+
+.p-button {
+  font-family: var(--font-body) !important;
+  border-radius: var(--border-radius-full) !important;
+}
+
+.p-toast {
+  .p-toast-message {
+    border-radius: var(--border-radius-md) !important;
+  }
+}

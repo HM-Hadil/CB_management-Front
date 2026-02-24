@@ -1,0 +1,122 @@
+<div class="auth-page">
+  <!-- Left Panel -->
+  <div class="auth-visual">
+    <div class="auth-visual__overlay"></div>
+    <img src="assets/images/salon-reception.jpg" alt="Al-Ghanja" class="auth-visual__img" />
+    <div class="auth-visual__content">
+      <div class="auth-logo">
+        <span class="logo-arabic-text">الغنجة</span>
+      </div>
+      <h2>Bienvenue dans<br/>votre espace professionnel</h2>
+      <p>Connectez-vous pour accéder à votre espace de travail personnalisé.</p>
+      <div class="visual-features">
+        <div class="vf-item"><i class="pi pi-shield"></i> Accès sécurisé JWT</div>
+        <div class="vf-item"><i class="pi pi-calendar"></i> Gestion des rendez-vous</div>
+        <div class="vf-item"><i class="pi pi-chart-bar"></i> Suivi des performances</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="auth-form-panel">
+    <div class="auth-form-container">
+
+      <a routerLink="/" class="back-link">
+        <i class="pi pi-arrow-left"></i> Retour au site
+      </a>
+
+      <div class="auth-brand">
+        <div class="brand-icon">✨</div>
+        <span>El-Ghanja Bride & Spa</span>
+      </div>
+
+      <h1 class="auth-title">Connexion</h1>
+      <p class="auth-subtitle">Sélectionnez votre espace et connectez-vous</p>
+
+      <!-- Role Selector -->
+      <div class="role-cards">
+        @for (role of roles; track role.value) {
+          <button
+            type="button"
+            class="role-card"
+            [class.active]="selectedRole() === role.value"
+            (click)="selectRole(role.value)"
+          >
+            <div class="role-card__icon">
+              <i class="pi {{ role.icon }}"></i>
+            </div>
+            <div class="role-card__text">
+              <span class="role-card__label">{{ role.label }}</span>
+              <span class="role-card__desc">{{ role.desc }}</span>
+            </div>
+            @if (selectedRole() === role.value) {
+              <div class="role-card__check">
+                <i class="pi pi-check"></i>
+              </div>
+            }
+          </button>
+        }
+      </div>
+
+      <!-- Login Form -->
+      <form class="auth-form" (ngSubmit)="login()">
+
+        <div class="form-group">
+          <label>
+            <i class="pi pi-envelope"></i> Email
+          </label>
+          <input
+            type="email"
+            [(ngModel)]="credentials.email"
+            name="email"
+            class="luxury-input"
+            placeholder="votre@email.com"
+            required
+            [disabled]="loading()"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>
+            <i class="pi pi-lock"></i> Mot de passe
+          </label>
+          <div class="input-with-toggle">
+            <input
+              [type]="showPassword() ? 'text' : 'password'"
+              [(ngModel)]="credentials.password"
+              name="password"
+              class="luxury-input"
+              placeholder="••••••••"
+              required
+              [disabled]="loading()"
+            />
+            <button type="button" class="toggle-pw" (click)="togglePassword()">
+              <i [class]="'pi ' + (showPassword() ? 'pi-eye-slash' : 'pi-eye')"></i>
+            </button>
+          </div>
+        </div>
+
+        @if (error()) {
+          <div class="error-alert">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ error() }}
+          </div>
+        }
+
+        <button
+          type="submit"
+          class="btn-submit"
+          [disabled]="loading()"
+        >
+          @if (loading()) {
+            <i class="pi pi-spin pi-spinner"></i> Connexion...
+          } @else {
+            <i class="pi pi-sign-in"></i> Se connecter
+          }
+        </button>
+
+      </form>
+
+    </div>
+  </div>
+</div>

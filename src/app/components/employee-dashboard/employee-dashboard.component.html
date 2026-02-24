@@ -1,0 +1,271 @@
+<div class="dashboard-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar__logo">
+      <div class="logo-icon"><span>الغنجة</span></div>
+      <div class="logo-info">
+        <strong>Al-Ghanja</strong>
+        <span>Espace Employée</span>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav">
+      <button class="nav-item" [class.active]="activeTab() === 'profile'" (click)="activeTab.set('profile')">
+        <i class="pi pi-user-edit"></i>
+        <span>Mon Profil</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab() === 'password'" (click)="activeTab.set('password')">
+        <i class="pi pi-lock"></i>
+        <span>Mot de passe</span>
+      </button>
+    </nav>
+
+    <div class="sidebar__user">
+      <div class="user-avatar">{{ getInitials() }}</div>
+      <div class="user-info">
+        <strong>{{ profile()?.prenom }} {{ profile()?.nom }}</strong>
+        <span class="role-tag">Employée</span>
+      </div>
+      <button class="logout-btn" (click)="logout()" title="Déconnexion">
+        <i class="pi pi-sign-out"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">
+          {{ activeTab() === 'profile' ? 'Mon Profil' : 'Changer le mot de passe' }}
+        </h1>
+        <p class="page-sub">
+          {{ activeTab() === 'profile' ? 'Mettez à jour vos informations professionnelles' : 'Modifiez votre mot de passe de connexion' }}
+        </p>
+      </div>
+    </header>
+
+    @if (loading()) {
+      <div class="page-loader">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>Chargement...</span>
+      </div>
+    } @else {
+
+      <!-- ── PROFILE CARD ───────────────────────────────── -->
+      <div class="profile-hero">
+        <div class="profile-avatar">{{ getInitials() }}</div>
+        <div class="profile-hero__info">
+          <h2>{{ profile()?.prenom }} {{ profile()?.nom }}</h2>
+          <p>{{ profile()?.email }}</p>
+          <div class="profile-tags">
+            <span class="tag tag--rose">
+              <i class="pi pi-briefcase"></i> Employée
+            </span>
+            @if (profile()?.specialite) {
+              <span class="tag tag--gold">
+                <i class="pi pi-star"></i> {{ profile()?.specialite }}
+              </span>
+            }
+            @if (profile()?.nombresExperiences !== null && profile()?.nombresExperiences !== undefined) {
+              <span class="tag tag--gray">
+                <i class="pi pi-clock"></i> {{ profile()?.nombresExperiences }} ans d'expérience
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- ── EDIT PROFILE TAB ───────────────────────────── -->
+      @if (activeTab() === 'profile') {
+        <div class="form-card">
+          <div class="form-card__header">
+            <div class="form-card__icon">
+              <i class="pi pi-user-edit"></i>
+            </div>
+            <div>
+              <h3>Informations professionnelles</h3>
+              <p>Ces informations sont visibles par l'équipe</p>
+            </div>
+          </div>
+
+          <div class="form-body">
+
+            <!-- Read-only info -->
+            <div class="info-grid">
+              <div class="info-item">
+                <label><i class="pi pi-user"></i> Prénom</label>
+                <div class="info-value readonly">{{ profile()?.prenom }}</div>
+              </div>
+              <div class="info-item">
+                <label><i class="pi pi-user"></i> Nom</label>
+                <div class="info-value readonly">{{ profile()?.nom }}</div>
+              </div>
+              <div class="info-item full-width">
+                <label><i class="pi pi-envelope"></i> Email</label>
+                <div class="info-value readonly">{{ profile()?.email }}</div>
+              </div>
+            </div>
+
+            <div class="divider">
+              <span>Informations modifiables</span>
+            </div>
+
+            <!-- Editable fields -->
+            <div class="form-grid">
+              <div class="form-group">
+                <label><i class="pi pi-phone"></i> Téléphone</label>
+                <input
+                  type="tel"
+                  [(ngModel)]="profileForm.telephone"
+                  class="luxury-input"
+                  placeholder="+216 xx xxx xxx"
+                />
+              </div>
+
+              <div class="form-group">
+                <label><i class="pi pi-palette"></i> Spécialité *</label>
+                <select [(ngModel)]="profileForm.specialite" class="luxury-input luxury-select">
+                  <option value="">Sélectionnez votre spécialité</option>
+                  @for (sp of specialites; track sp) {
+                    <option [value]="sp">{{ sp }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label><i class="pi pi-clock"></i> Années d'expérience</label>
+                <div class="input-with-unit">
+                  <input
+                    type="number"
+                    [(ngModel)]="profileForm.nombresExperiences"
+                    class="luxury-input"
+                    placeholder="Ex: 3"
+                    min="0" max="50"
+                  />
+                  <span class="unit-badge">ans</span>
+                </div>
+              </div>
+            </div>
+
+            @if (error() && activeTab() === 'profile') {
+              <div class="alert alert--error">
+                <i class="pi pi-exclamation-triangle"></i> {{ error() }}
+              </div>
+            }
+            @if (success()) {
+              <div class="alert alert--success">
+                <i class="pi pi-check-circle"></i> {{ success() }}
+              </div>
+            }
+
+            <div class="form-actions">
+              <button
+                class="btn-save"
+                (click)="saveProfile()"
+                [disabled]="saveLoading()"
+              >
+                @if (saveLoading()) {
+                  <i class="pi pi-spin pi-spinner"></i> Sauvegarde...
+                } @else {
+                  <i class="pi pi-check"></i> Sauvegarder
+                }
+              </button>
+            </div>
+
+          </div>
+        </div>
+      }
+
+      <!-- ── PASSWORD TAB ───────────────────────────────── -->
+      @if (activeTab() === 'password') {
+        <div class="form-card">
+          <div class="form-card__header">
+            <div class="form-card__icon form-card__icon--gold">
+              <i class="pi pi-lock"></i>
+            </div>
+            <div>
+              <h3>Changer le mot de passe</h3>
+              <p>Utilisez un mot de passe fort d'au moins 6 caractères</p>
+            </div>
+          </div>
+
+          <div class="form-body">
+            <div class="form-group">
+              <label><i class="pi pi-lock"></i> Mot de passe actuel</label>
+              <div class="input-toggle">
+                <input
+                  [type]="showCurrentPw() ? 'text' : 'password'"
+                  [(ngModel)]="passwordForm.currentPassword"
+                  class="luxury-input"
+                  placeholder="••••••••"
+                />
+                <button type="button" (click)="showCurrentPw.set(!showCurrentPw())">
+                  <i [class]="'pi ' + (showCurrentPw() ? 'pi-eye-slash' : 'pi-eye')"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label><i class="pi pi-lock"></i> Nouveau mot de passe</label>
+              <div class="input-toggle">
+                <input
+                  [type]="showNewPw() ? 'text' : 'password'"
+                  [(ngModel)]="passwordForm.newPassword"
+                  class="luxury-input"
+                  placeholder="Minimum 6 caractères"
+                />
+                <button type="button" (click)="showNewPw.set(!showNewPw())">
+                  <i [class]="'pi ' + (showNewPw() ? 'pi-eye-slash' : 'pi-eye')"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label><i class="pi pi-lock"></i> Confirmer le nouveau mot de passe</label>
+              <input
+                [type]="showNewPw() ? 'text' : 'password'"
+                [(ngModel)]="passwordForm.confirmPassword"
+                class="luxury-input"
+                placeholder="Répétez le mot de passe"
+              />
+              @if (passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword) {
+                <span class="field-error">
+                  <i class="pi pi-times-circle"></i> Les mots de passe ne correspondent pas
+                </span>
+              }
+            </div>
+
+            @if (error() && activeTab() === 'password') {
+              <div class="alert alert--error">
+                <i class="pi pi-exclamation-triangle"></i> {{ error() }}
+              </div>
+            }
+            @if (success()) {
+              <div class="alert alert--success">
+                <i class="pi pi-check-circle"></i> {{ success() }}
+              </div>
+            }
+
+            <div class="form-actions">
+              <button
+                class="btn-save btn-save--gold"
+                (click)="savePassword()"
+                [disabled]="saveLoading()"
+              >
+                @if (saveLoading()) {
+                  <i class="pi pi-spin pi-spinner"></i> Modification...
+                } @else {
+                  <i class="pi pi-shield"></i> Modifier le mot de passe
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    }
+
+  </main>
+</div>

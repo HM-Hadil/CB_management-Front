@@ -26,13 +26,14 @@
     </nav>
 
     <!-- CTA Buttons -->
-    <div class="navbar__actions">
-      <a routerLink="/login" class="btn-nav-outline">
-        <i class="pi pi-sign-in"></i>
-        Connexion
-      </a>
-      
-    </div>
+    @if (!authService.isAuthenticated()) {
+      <div class="navbar__actions">
+        <a routerLink="/login" class="btn-nav-outline">
+          <i class="pi pi-sign-in"></i>
+          Connexion
+        </a>
+      </div>
+    }
 
     <!-- Hamburger -->
     <button class="hamburger" (click)="toggleMenu()" [class.open]="menuOpen()">
@@ -55,14 +56,13 @@
       <a routerLink="/contact" routerLinkActive="active" class="mobile-nav-link" (click)="closeMenu()">
         <i class="pi pi-envelope"></i> Contact
       </a>
-      <div class="mobile-actions">
-        <a routerLink="/login" class="btn-nav-outline full-width" (click)="closeMenu()">
-          <i class="pi pi-sign-in"></i> Connexion
-        </a>
-        <a routerLink="/register" class="btn-nav-gold full-width" (click)="closeMenu()">
-          <i class="pi pi-user-plus"></i> Inscription
-        </a>
-      </div>
+      @if (!authService.isAuthenticated()) {
+        <div class="mobile-actions">
+          <a routerLink="/login" class="btn-nav-outline full-width" (click)="closeMenu()">
+            <i class="pi pi-sign-in"></i> Connexion
+          </a>
+        </div>
+      }
     </nav>
   </div>
 </header>

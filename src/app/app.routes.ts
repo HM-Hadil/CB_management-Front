@@ -20,5 +20,5 @@ export const routes: Routes = [
   { path: 'employee',       component: EmployeeDashboardComponent,   canActivate: [employeeGuard] },
   { path: 'receptionniste', component: ReceptionistDashboardComponent, canActivate: [receptionistGuard] },
 
-  { path: '**',             redirectTo: '' }
+  { path: '**', redirectTo: '' }
 ];

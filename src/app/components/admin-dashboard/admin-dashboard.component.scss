@@ -599,3 +599,288 @@
   box-shadow: 0 4px 15px rgba(124,58,237,0.3) !important;
   &:hover { box-shadow: 0 8px 25px rgba(124,58,237,0.4) !important; }
 }
+
+// ══ RDV TAB ══════════════════════════════════════════════════════
+
+// Refresh button
+.btn-refresh {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1.5rem; background: white; color: var(--text-medium);
+  border: 1.5px solid var(--rose-200); border-radius: var(--border-radius-full);
+  font-family: var(--font-body); font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: var(--transition); white-space: nowrap;
+  &:hover:not(:disabled) { background: var(--rose-50); color: var(--rose-700); border-color: var(--rose-300); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+  i { font-size: 0.85rem; }
+}
+
+// Sidebar RDV badge variant
+.nav-badge--rdv {
+  background: var(--gradient-rose);
+}
+
+// RDV Stats row (6 columns)
+.rdv-stats-row {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;
+  @media (max-width: 1400px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 800px)  { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 500px)  { grid-template-columns: 1fr; }
+}
+
+// Extra stat card variants
+.stat-card--amber {
+  border-color: #fde68a;
+  .stat-card__icon { background: #fffbeb; i { color: #d97706; } }
+  .stat-card__value { color: #b45309; }
+}
+.stat-card--blue {
+  border-color: #bfdbfe;
+  .stat-card__icon { background: #eff6ff; i { color: #2563eb; } }
+  .stat-card__value { color: #1d4ed8; }
+}
+
+// ── RDV Filter card ───────────────────────────────────────────────
+.rdv-filter-card {
+  background: white; border-radius: var(--border-radius-xl);
+  padding: 1.25rem 1.5rem; box-shadow: var(--shadow-card);
+  border: 1px solid var(--rose-100); display: flex; flex-direction: column; gap: 1rem;
+}
+
+.rdv-filter-row {
+  display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+}
+
+.rdv-filter-group {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+}
+
+.rdv-filter-label {
+  font-size: 0.72rem; font-weight: 700; color: var(--text-light);
+  text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
+}
+
+.rdv-pill-group { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+
+.rdv-pill {
+  padding: 0.35rem 0.875rem; border-radius: var(--border-radius-full);
+  border: 1.5px solid var(--rose-200); background: white;
+  font-family: var(--font-body); font-size: 0.775rem; font-weight: 600;
+  color: var(--text-medium); cursor: pointer; transition: var(--transition);
+  &:hover { border-color: var(--gold-400); color: var(--gold-700); background: var(--gold-50); }
+  &.active { background: var(--gradient-gold); color: white; border-color: transparent; box-shadow: var(--shadow-gold); }
+}
+.rdv-pill--normal {
+  &.active { background: linear-gradient(135deg, #93c5fd, #2563eb); }
+  &:hover:not(.active) { border-color: #3b82f6; color: #1d4ed8; background: #eff6ff; }
+}
+.rdv-pill--mariage {
+  &.active { background: linear-gradient(135deg, #c4b5fd, #7c3aed); }
+  &:hover:not(.active) { border-color: #a78bfa; color: #6d28d9; background: #faf5ff; }
+}
+.rdv-pill--attente {
+  &.active { background: linear-gradient(135deg, #fde68a, #d97706); }
+  &:hover:not(.active) { border-color: #d97706; color: #92400e; background: #fffbeb; }
+}
+.rdv-pill--confirme {
+  &.active { background: linear-gradient(135deg, #86efac, #16a34a); }
+  &:hover:not(.active) { border-color: #22c55e; color: #15803d; background: #f0fdf4; }
+}
+.rdv-pill--termine {
+  &.active { background: linear-gradient(135deg, #d1d5db, #374151); }
+  &:hover:not(.active) { border-color: #6b7280; color: #374151; background: #f9fafb; }
+}
+.rdv-pill--annule {
+  &.active { background: linear-gradient(135deg, #fca5a5, #dc2626); }
+  &:hover:not(.active) { border-color: #ef4444; color: #dc2626; background: #fef2f2; }
+}
+
+.rdv-select {
+  padding: 0.5rem 2.5rem 0.5rem 0.875rem; border-radius: var(--border-radius-full);
+  border: 1.5px solid var(--rose-200); background: white;
+  font-family: var(--font-body); font-size: 0.825rem; color: var(--text-dark);
+  cursor: pointer; outline: none; transition: var(--transition);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%239a7070' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.875rem center; background-size: 10px;
+  &:focus { border-color: var(--gold-400); box-shadow: 0 0 0 3px rgba(212,160,23,0.1); }
+}
+
+.rdv-search-box {
+  display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 240px;
+  background: var(--rose-50); border: 1.5px solid var(--rose-200);
+  border-radius: var(--border-radius-full); padding: 0.5rem 1rem;
+  transition: var(--transition);
+  &:focus-within { border-color: var(--gold-400); background: white; }
+  i { color: var(--text-light); font-size: 0.8rem; flex-shrink: 0; }
+  input {
+    flex: 1; border: none; outline: none; background: none;
+    font-family: var(--font-body); font-size: 0.85rem; color: var(--text-dark);
+    &::placeholder { color: var(--text-light); }
+  }
+  button { background: none; border: none; color: var(--text-light); cursor: pointer;
+    padding: 0; font-size: 0.75rem; &:hover { color: var(--rose-500); } }
+}
+
+.rdv-active-filters {
+  display: flex; align-items: center; gap: 1rem;
+  padding-top: 0.5rem; border-top: 1px solid var(--rose-100);
+}
+
+.rdv-results-count {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.8rem; font-weight: 600; color: var(--gold-700);
+  i { font-size: 0.75rem; }
+}
+
+.rdv-clear-filters {
+  display: flex; align-items: center; gap: 0.3rem;
+  background: none; border: 1px solid var(--rose-200); border-radius: var(--border-radius-full);
+  padding: 0.3rem 0.75rem; font-family: var(--font-body); font-size: 0.75rem;
+  font-weight: 600; color: var(--rose-600); cursor: pointer; transition: var(--transition);
+  margin-left: auto;
+  &:hover { background: var(--rose-50); border-color: var(--rose-300); }
+  i { font-size: 0.65rem; }
+}
+
+// ── RDV Table cells ───────────────────────────────────────────────
+.rdv-table-wrapper { overflow-x: auto; }
+
+.rdv-client-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--gradient-gold); color: white;
+  font-size: 0.78rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.rdv-type-badge {
+  display: inline-block; padding: 0.25rem 0.65rem;
+  border-radius: var(--border-radius-full); font-size: 0.75rem; font-weight: 600;
+  border: 1px solid transparent; white-space: nowrap;
+  &.rdv-type--normal  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  &.rdv-type--mariage { background: #faf5ff; color: #6d28d9; border-color: #e9d5ff; }
+}
+
+.rdv-statut-badge {
+  display: inline-block; padding: 0.3rem 0.75rem;
+  border-radius: var(--border-radius-full); font-size: 0.75rem; font-weight: 700;
+  border: 1px solid transparent; white-space: nowrap;
+  &.rdv-statut--en-attente { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  &.rdv-statut--confirme   { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+  &.rdv-statut--annule     { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+  &.rdv-statut--termine    { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+}
+
+.rdv-services-cell { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.rdv-service-line {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.rdv-svc-chip {
+  display: inline-block; padding: 0.18rem 0.55rem;
+  background: var(--gold-50); color: var(--gold-700); border: 1px solid var(--gold-200);
+  border-radius: var(--border-radius-full); font-size: 0.7rem; font-weight: 600;
+  white-space: nowrap;
+}
+
+.rdv-svc-emp {
+  display: flex; align-items: center; gap: 0.25rem;
+  font-size: 0.78rem; color: var(--text-medium);
+  i { font-size: 0.65rem; color: var(--rose-400); }
+}
+
+.rdv-date-cell {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.82rem; color: var(--text-dark); white-space: nowrap;
+  i { font-size: 0.72rem; color: var(--gold-500); }
+}
+
+.rdv-duree-badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  background: var(--rose-50); color: var(--rose-700); border: 1px solid var(--rose-200);
+  border-radius: var(--border-radius-full); padding: 0.2rem 0.6rem;
+  font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+  i { font-size: 0.68rem; }
+}
+
+// ── RDV Detail Modal ──────────────────────────────────────────────
+.rdv-detail-modal {
+  background: white; border-radius: var(--border-radius-xl);
+  width: 100%; max-width: 600px; max-height: 90vh;
+  overflow-y: auto; box-shadow: 0 25px 60px rgba(44,26,26,0.25);
+  animation: slideUp 0.3s ease;
+}
+
+.rdv-detail-header {
+  display: flex; align-items: flex-start; gap: 1rem;
+  padding: 1.5rem 1.75rem; border-bottom: 1px solid var(--rose-100);
+  position: sticky; top: 0; background: white; z-index: 1;
+  h2 { font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-dark); margin: 0 0 6px; }
+}
+
+.rdv-detail-badges {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.rdv-detail-icon {
+  width: 44px; height: 44px; border-radius: var(--border-radius-md);
+  background: var(--gradient-gold);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  i { color: white; font-size: 1rem; }
+}
+
+.rdv-detail-body {
+  padding: 1.5rem 1.75rem; display: flex; flex-direction: column; gap: 1.25rem;
+}
+
+.rdv-detail-section {
+  h4 {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--gold-600); margin: 0 0 0.75rem;
+    display: flex; align-items: center; gap: 0.4rem;
+    i { font-size: 0.65rem; }
+  }
+}
+
+.rdv-info-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+  @media (max-width: 500px) { grid-template-columns: 1fr; }
+}
+
+.rdv-info-item {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  padding: 0.75rem 1rem; background: var(--rose-50);
+  border-radius: var(--border-radius-md); border: 1px solid var(--rose-100);
+  .rdv-info-label {
+    font-size: 0.68rem; color: var(--text-light); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .rdv-info-value {
+    font-size: 0.875rem; color: var(--text-dark); font-weight: 500;
+    display: flex; align-items: center; gap: 0.3rem;
+  }
+}
+
+.rdv-service-detail-row {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: 0.75rem 1rem; background: var(--rose-50);
+  border-radius: var(--border-radius-md); border: 1px solid var(--rose-100);
+  margin-bottom: 0.4rem;
+  &:last-child { margin-bottom: 0; }
+}
+
+.rdv-svc-emp-info {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.rdv-svc-emp-name {
+  display: flex; align-items: center; gap: 0.3rem;
+  font-size: 0.825rem; color: var(--text-medium); font-weight: 500;
+  i { font-size: 0.7rem; color: var(--rose-400); }
+}
+
+.rdv-svc-specialite {
+  display: inline-block; padding: 0.15rem 0.5rem;
+  background: var(--gold-50); color: var(--gold-700); border: 1px solid var(--gold-200);
+  border-radius: var(--border-radius-full); font-size: 0.68rem; font-weight: 600;
+}

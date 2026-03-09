@@ -1,6 +1,7 @@
 import { Component, HostListener, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-navbar',
@@ -12,6 +13,8 @@ import { CommonModule } from '@angular/common';
 export class NavbarComponent {
   isScrolled = signal(false);
   menuOpen = signal(false);
+
+  constructor(public authService: AuthService) {}
 
   @HostListener('window:scroll')
   onScroll() {

@@ -4,6 +4,7 @@ import { NavbarComponent } from './components/navbar/navbar.component';
 import { FooterComponent } from './components/footer/footer.component';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
+import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -15,7 +16,9 @@ import { MessageService } from 'primeng/api';
     <main>
       <router-outlet></router-outlet>
     </main>
-    <app-footer></app-footer>
+    @if (!authService.isAuthenticated()) {
+      <app-footer></app-footer>
+    }
   `,
   styles: [`
     main {
@@ -26,4 +29,5 @@ import { MessageService } from 'primeng/api';
 })
 export class AppComponent {
   title = 'Al-Ghanja Bride & Spa';
+  constructor(public authService: AuthService) {}
 }

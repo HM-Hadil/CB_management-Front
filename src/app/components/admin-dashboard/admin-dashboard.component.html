@@ -11,20 +11,27 @@
     </div>
 
     <nav class="sidebar__nav">
-      <button class="nav-item active" (click)="setTab('all')">
+      <button class="nav-item" [class.active]="activeTab() === 'all'" (click)="setTab('all')">
         <i class="pi pi-users"></i>
         <span>Tout le staff</span>
         <span class="nav-badge">{{ users().length }}</span>
       </button>
-      <button class="nav-item" (click)="setTab('employees')">
+      <button class="nav-item" [class.active]="activeTab() === 'employees'" (click)="setTab('employees')">
         <i class="pi pi-briefcase"></i>
         <span>Employées</span>
         <span class="nav-badge">{{ totalEmployees() }}</span>
       </button>
-      <button class="nav-item" (click)="setTab('receptionists')">
+      <button class="nav-item" [class.active]="activeTab() === 'receptionists'" (click)="setTab('receptionists')">
         <i class="pi pi-desktop"></i>
         <span>Réceptionnistes</span>
         <span class="nav-badge">{{ totalReception() }}</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab() === 'rdv'" (click)="setTab('rdv')">
+        <i class="pi pi-calendar"></i>
+        <span>Rendez-vous</span>
+        @if (rdvTotalCount() > 0) {
+          <span class="nav-badge nav-badge--rdv">{{ rdvTotalCount() }}</span>
+        }
       </button>
     </nav>
 
@@ -52,236 +59,463 @@
           <i class="pi pi-bars"></i>
         </button>
         <div>
-          <h1 class="page-title">Gestion du Personnel</h1>
-          <p class="page-sub">Gérez les comptes employés et réceptionnistes</p>
+          @if (activeTab() === 'rdv') {
+            <h1 class="page-title">Tous les Rendez-vous</h1>
+            <p class="page-sub">Consultation globale — lecture seule</p>
+          } @else {
+            <h1 class="page-title">Gestion du Personnel</h1>
+            <p class="page-sub">Gérez les comptes employés et réceptionnistes</p>
+          }
         </div>
       </div>
-      <button class="btn-create" (click)="openCreateModal()">
-        <i class="pi pi-user-plus"></i>
-        Créer un compte
-      </button>
-    </header>
-
-    <!-- Stats cards -->
-    <div class="stats-row">
-      <div class="stat-card stat-card--gold">
-        <div class="stat-card__icon"><i class="pi pi-users"></i></div>
-        <div class="stat-card__info">
-          <span class="stat-card__value">{{ users().length }}</span>
-          <span class="stat-card__label">Total Staff</span>
-        </div>
-      </div>
-      <div class="stat-card stat-card--rose">
-        <div class="stat-card__icon"><i class="pi pi-briefcase"></i></div>
-        <div class="stat-card__info">
-          <span class="stat-card__value">{{ totalEmployees() }}</span>
-          <span class="stat-card__label">Employées</span>
-        </div>
-      </div>
-      <div class="stat-card stat-card--purple">
-        <div class="stat-card__icon"><i class="pi pi-desktop"></i></div>
-        <div class="stat-card__info">
-          <span class="stat-card__value">{{ totalReception() }}</span>
-          <span class="stat-card__label">Réceptionnistes</span>
-        </div>
-      </div>
-      <div class="stat-card stat-card--green">
-        <div class="stat-card__icon"><i class="pi pi-check-circle"></i></div>
-        <div class="stat-card__info">
-          <span class="stat-card__value">{{ totalActive() }}</span>
-          <span class="stat-card__label">Comptes actifs</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Filters & Search -->
-   <div class="table-controls">
-  <div class="tab-group">
-    <button class="tab-btn" [class.active]="activeTab()==='all'" (click)="setTab('all')">
-      Tous
-    </button>
-    <button class="tab-btn" [class.active]="activeTab()==='employees'" (click)="setTab('employees')">
-      <i class="pi pi-briefcase"></i> Employées
-    </button>
-    <button class="tab-btn" [class.active]="activeTab()==='receptionists'" (click)="setTab('receptionists')">
-      <i class="pi pi-desktop"></i> Réceptionnistes
-    </button>
-  </div>
-
-  <div class="controls-right">
-    <!-- Bouton contextuel selon l'onglet -->
-    @if (activeTab() === 'employees') {
-      <button class="btn-create btn-create--rose" (click)="openCreateModal(Role.EMPLOYEE)">
-        <i class="pi pi-user-plus"></i> Nouvelle Employée
-      </button>
-    }
-    @if (activeTab() === 'receptionists') {
-      <button class="btn-create btn-create--purple" (click)="openCreateModal(Role.RECEPTIONIST)">
-        <i class="pi pi-user-plus"></i> Nouvelle Réceptionniste
-      </button>
-    }
-    @if (activeTab() === 'all') {
-      <button class="btn-create" (click)="openCreateModal()">
-        <i class="pi pi-user-plus"></i> Créer un compte
-      </button>
-    }
-
-    <div class="search-box">
-      <i class="pi pi-search"></i>
-      <input
-        type="text"
-        placeholder="Rechercher..."
-        [ngModel]="searchQuery()"
-        (ngModelChange)="searchQuery.set($event)"
-      />
-      @if (searchQuery()) {
-        <button class="clear-search" (click)="searchQuery.set('')">
-          <i class="pi pi-times"></i>
+      @if (activeTab() !== 'rdv') {
+        <button class="btn-create" (click)="openCreateModal()">
+          <i class="pi pi-user-plus"></i>
+          Créer un compte
+        </button>
+      } @else {
+        <button class="btn-refresh" (click)="loadAllRdv()" [disabled]="rdvLoading()">
+          <i [class]="rdvLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
+          Actualiser
         </button>
       }
-    </div>
-  </div>
-</div>
+    </header>
 
-    <!-- Table -->
-    <div class="table-card">
-      @if (loading()) {
-        <div class="table-loader">
-          <i class="pi pi-spin pi-spinner"></i>
-          <span>Chargement...</span>
+    <!-- ══ STAFF SECTION (tabs: all / employees / receptionists) ══ -->
+    @if (activeTab() !== 'rdv') {
+
+      <!-- Stats cards -->
+      <div class="stats-row">
+        <div class="stat-card stat-card--gold">
+          <div class="stat-card__icon"><i class="pi pi-users"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ users().length }}</span>
+            <span class="stat-card__label">Total Staff</span>
+          </div>
         </div>
-      } @else if (filteredUsers().length === 0) {
-        <div class="table-empty">
-          <div class="empty-icon">👥</div>
-          <h3>Aucun compte trouvé</h3>
-          <p>{{ searchQuery() ? 'Aucun résultat pour votre recherche.' : 'Créez le premier compte pour commencer.' }}</p>
-          @if (!searchQuery()) {
+        <div class="stat-card stat-card--rose">
+          <div class="stat-card__icon"><i class="pi pi-briefcase"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ totalEmployees() }}</span>
+            <span class="stat-card__label">Employées</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--purple">
+          <div class="stat-card__icon"><i class="pi pi-desktop"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ totalReception() }}</span>
+            <span class="stat-card__label">Réceptionnistes</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--green">
+          <div class="stat-card__icon"><i class="pi pi-check-circle"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ totalActive() }}</span>
+            <span class="stat-card__label">Comptes actifs</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters & Search -->
+      <div class="table-controls">
+        <div class="tab-group">
+          <button class="tab-btn" [class.active]="activeTab() === 'all'" (click)="setTab('all')">Tous</button>
+          <button class="tab-btn" [class.active]="activeTab() === 'employees'" (click)="setTab('employees')">
+            <i class="pi pi-briefcase"></i> Employées
+          </button>
+          <button class="tab-btn" [class.active]="activeTab() === 'receptionists'" (click)="setTab('receptionists')">
+            <i class="pi pi-desktop"></i> Réceptionnistes
+          </button>
+        </div>
+
+        <div class="controls-right">
+          @if (activeTab() === 'employees') {
+            <button class="btn-create btn-create--rose" (click)="openCreateModal(Role.EMPLOYEE)">
+              <i class="pi pi-user-plus"></i> Nouvelle Employée
+            </button>
+          }
+          @if (activeTab() === 'receptionists') {
+            <button class="btn-create btn-create--purple" (click)="openCreateModal(Role.RECEPTIONIST)">
+              <i class="pi pi-user-plus"></i> Nouvelle Réceptionniste
+            </button>
+          }
+          @if (activeTab() === 'all') {
             <button class="btn-create" (click)="openCreateModal()">
               <i class="pi pi-user-plus"></i> Créer un compte
             </button>
           }
+          <div class="search-box">
+            <i class="pi pi-search"></i>
+            <input type="text" placeholder="Rechercher..."
+              [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+            @if (searchQuery()) {
+              <button class="clear-search" (click)="searchQuery.set('')">
+                <i class="pi pi-times"></i>
+              </button>
+            }
+          </div>
         </div>
-      } @else {
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Membre</th>
-              <th>Contact</th>
-              <th>Rôle</th>
-              <th>Spécialité</th>
-              <th>Expérience</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (user of filteredUsers(); track user.id) {
-              <tr [class.inactive-row]="!user.activated">
-                <!-- Membre -->
-                <td>
-                  <div class="user-cell">
-                    <div class="user-avatar-sm" [class]="'avatar-' + user.role.toLowerCase()">
-                      {{ getInitials(user) }}
-                    </div>
-                    <div>
-                      <span class="user-name">{{ user.prenom }} {{ user.nom }}</span>
-                      <span class="user-email">{{ user.email }}</span>
-                    </div>
-                  </div>
-                </td>
+      </div>
 
-                <!-- Contact -->
-                <td>
-                  <span class="cell-phone">
-                    <i class="pi pi-phone"></i>
-                    {{ user.telephone || '—' }}
-                  </span>
-                </td>
-
-                <!-- Rôle -->
-                <td>
-                  <span class="role-badge" [class]="'role-' + user.role.toLowerCase()">
-                    <i class="pi {{ getRoleIcon(user.role) }}"></i>
-                    {{ getRoleLabel(user.role) }}
-                  </span>
-                </td>
-
-                <!-- Spécialité -->
-                <td>
-                  @if (user.specialite) {
-                    <span class="specialite-badge">{{ user.specialite }}</span>
-                  } @else {
-                    <span class="text-muted">—</span>
-                  }
-                </td>
-
-                <!-- Expérience -->
-                <td>
-                  @if (user.nombresExperiences !== null && user.nombresExperiences !== undefined) {
-                    <span class="exp-badge">
-                      <i class="pi pi-clock"></i>
-                      {{ user.nombresExperiences }} ans
-                    </span>
-                  } @else {
-                    <span class="text-muted">—</span>
-                  }
-                </td>
-
-                <!-- Statut -->
-                <td>
-                  <button
-                    class="status-toggle"
-                    [class.active]="user.activated"
-                    (click)="toggleActivation(user)"
-                    [title]="user.activated ? 'Désactiver' : 'Activer'"
-                  >
-                    <span class="status-dot"></span>
-                    {{ user.activated ? 'Actif' : 'Inactif' }}
-                  </button>
-                </td>
-
-                <!-- Actions -->
-                <td>
-                  <div class="action-btns">
-                    <button class="action-btn edit" (click)="openEditModal(user)" title="Modifier">
-                      <i class="pi pi-pencil"></i>
-                    </button>
-                    <button class="action-btn delete" (click)="confirmDelete(user.id)" title="Supprimer">
-                      <i class="pi pi-trash"></i>
-                    </button>
-                  </div>
-                </td>
+      <!-- Staff Table -->
+      <div class="table-card">
+        @if (loading()) {
+          <div class="table-loader">
+            <i class="pi pi-spin pi-spinner"></i>
+            <span>Chargement...</span>
+          </div>
+        } @else if (filteredUsers().length === 0) {
+          <div class="table-empty">
+            <div class="empty-icon">👥</div>
+            <h3>Aucun compte trouvé</h3>
+            <p>{{ searchQuery() ? 'Aucun résultat pour votre recherche.' : 'Créez le premier compte pour commencer.' }}</p>
+            @if (!searchQuery()) {
+              <button class="btn-create" (click)="openCreateModal()">
+                <i class="pi pi-user-plus"></i> Créer un compte
+              </button>
+            }
+          </div>
+        } @else {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Membre</th>
+                <th>Contact</th>
+                <th>Rôle</th>
+                <th>Spécialité</th>
+                <th>Expérience</th>
+                <th>Statut</th>
+                <th>Actions</th>
               </tr>
-
-              <!-- Delete confirm row -->
-              @if (deleteConfirmId() === user.id) {
-                <tr class="confirm-row">
-                  <td colspan="7">
-                    <div class="confirm-delete">
-                      <i class="pi pi-exclamation-triangle"></i>
-                      <span>Supprimer définitivement <strong>{{ user.prenom }} {{ user.nom }}</strong> ?</span>
-                      <div class="confirm-actions">
-                        <button class="confirm-yes" (click)="deleteUser(user.id)">
-                          <i class="pi pi-check"></i> Supprimer
-                        </button>
-                        <button class="confirm-no" (click)="cancelDelete()">
-                          <i class="pi pi-times"></i> Annuler
-                        </button>
+            </thead>
+            <tbody>
+              @for (user of filteredUsers(); track user.id) {
+                <tr [class.inactive-row]="!user.activated">
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar-sm" [class]="'avatar-' + user.role.toLowerCase()">
+                        {{ getInitials(user) }}
+                      </div>
+                      <div>
+                        <span class="user-name">{{ user.prenom }} {{ user.nom }}</span>
+                        <span class="user-email">{{ user.email }}</span>
                       </div>
                     </div>
                   </td>
+                  <td>
+                    <span class="cell-phone">
+                      <i class="pi pi-phone"></i>{{ user.telephone || '—' }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="role-badge" [class]="'role-' + user.role.toLowerCase()">
+                      <i class="pi {{ getRoleIcon(user.role) }}"></i>
+                      {{ getRoleLabel(user.role) }}
+                    </span>
+                  </td>
+                  <td>
+                    @if (user.specialite) {
+                      <span class="specialite-badge">{{ getSpecialiteLabel(user.specialite) }}</span>
+                    } @else {
+                      <span class="text-muted">—</span>
+                    }
+                  </td>
+                  <td>
+                    @if (user.nombresExperiences !== null && user.nombresExperiences !== undefined) {
+                      <span class="exp-badge">
+                        <i class="pi pi-clock"></i>{{ user.nombresExperiences }} ans
+                      </span>
+                    } @else {
+                      <span class="text-muted">—</span>
+                    }
+                  </td>
+                  <td>
+                    <button class="status-toggle" [class.active]="user.activated"
+                      (click)="toggleActivation(user)" [title]="user.activated ? 'Désactiver' : 'Activer'">
+                      <span class="status-dot"></span>
+                      {{ user.activated ? 'Actif' : 'Inactif' }}
+                    </button>
+                  </td>
+                  <td>
+                    <div class="action-btns">
+                      <button class="action-btn edit" (click)="openEditModal(user)" title="Modifier">
+                        <i class="pi pi-pencil"></i>
+                      </button>
+                      <button class="action-btn delete" (click)="confirmDelete(user.id)" title="Supprimer">
+                        <i class="pi pi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
+
+                @if (deleteConfirmId() === user.id) {
+                  <tr class="confirm-row">
+                    <td colspan="7">
+                      <div class="confirm-delete">
+                        <i class="pi pi-exclamation-triangle"></i>
+                        <span>Supprimer définitivement <strong>{{ user.prenom }} {{ user.nom }}</strong> ?</span>
+                        <div class="confirm-actions">
+                          <button class="confirm-yes" (click)="deleteUser(user.id)">
+                            <i class="pi pi-check"></i> Supprimer
+                          </button>
+                          <button class="confirm-no" (click)="cancelDelete()">
+                            <i class="pi pi-times"></i> Annuler
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                }
               }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+
+    <!-- ══ RDV SECTION ══════════════════════════════════════════ -->
+    @if (activeTab() === 'rdv') {
+
+      <!-- RDV Stats -->
+      <div class="rdv-stats-row">
+        <div class="stat-card stat-card--gold">
+          <div class="stat-card__icon"><i class="pi pi-calendar"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvTotalCount() }}</span>
+            <span class="stat-card__label">Total RDV</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--rose">
+          <div class="stat-card__icon"><i class="pi pi-heart"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvMariageCount() }}</span>
+            <span class="stat-card__label">Mariage</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--blue">
+          <div class="stat-card__icon"><i class="pi pi-user"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvNormalCount() }}</span>
+            <span class="stat-card__label">Normal</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--amber">
+          <div class="stat-card__icon"><i class="pi pi-clock"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvEnAttenteCount() }}</span>
+            <span class="stat-card__label">En attente</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--green">
+          <div class="stat-card__icon"><i class="pi pi-check-circle"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvConfirmeCount() }}</span>
+            <span class="stat-card__label">Confirmés</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--purple">
+          <div class="stat-card__icon"><i class="pi pi-sun"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvAujourdhuiCount() }}</span>
+            <span class="stat-card__label">Aujourd'hui</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RDV Filters -->
+      <div class="rdv-filter-card">
+
+        <!-- Row 1 : TypeClient + Statut -->
+        <div class="rdv-filter-row">
+          <div class="rdv-filter-group">
+            <span class="rdv-filter-label">Type client :</span>
+            <div class="rdv-pill-group">
+              <button class="rdv-pill" [class.active]="rdvFilterTypeClient() === 'ALL'"
+                (click)="setRdvFilterTypeClient('ALL')">Tous</button>
+              <button class="rdv-pill rdv-pill--normal" [class.active]="rdvFilterTypeClient() === TypeClient.NORMAL"
+                (click)="setRdvFilterTypeClient(TypeClient.NORMAL)">Normal</button>
+              <button class="rdv-pill rdv-pill--mariage" [class.active]="rdvFilterTypeClient() === TypeClient.MARIAGE"
+                (click)="setRdvFilterTypeClient(TypeClient.MARIAGE)">💍 Mariage</button>
+            </div>
+          </div>
+
+          <div class="rdv-filter-group">
+            <span class="rdv-filter-label">Statut :</span>
+            <div class="rdv-pill-group">
+              <button class="rdv-pill" [class.active]="rdvFilterStatut() === 'ALL'"
+                (click)="setRdvFilterStatut('ALL')">Tous</button>
+              <button class="rdv-pill rdv-pill--attente"
+                [class.active]="rdvFilterStatut() === StatutRendezVous.EN_ATTENTE"
+                (click)="setRdvFilterStatut(StatutRendezVous.EN_ATTENTE)">En attente</button>
+              <button class="rdv-pill rdv-pill--confirme"
+                [class.active]="rdvFilterStatut() === StatutRendezVous.CONFIRME"
+                (click)="setRdvFilterStatut(StatutRendezVous.CONFIRME)">Confirmé</button>
+              <button class="rdv-pill rdv-pill--termine"
+                [class.active]="rdvFilterStatut() === StatutRendezVous.TERMINE"
+                (click)="setRdvFilterStatut(StatutRendezVous.TERMINE)">Terminé</button>
+              <button class="rdv-pill rdv-pill--annule"
+                [class.active]="rdvFilterStatut() === StatutRendezVous.ANNULE"
+                (click)="setRdvFilterStatut(StatutRendezVous.ANNULE)">Annulé</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2 : Employee dropdown + Search -->
+        <div class="rdv-filter-row">
+          <div class="rdv-filter-group">
+            <span class="rdv-filter-label">Employée :</span>
+            <select class="rdv-select"
+              [ngModel]="rdvFilterEmployeeStr()"
+              (ngModelChange)="rdvFilterEmployeeStr.set($event)">
+              <option value="ALL">Toutes les employées</option>
+              @for (emp of employeesList(); track emp.id) {
+                <option [value]="emp.id.toString()">{{ emp.prenom }} {{ emp.nom }}
+                  @if (emp.specialite) { ({{ getSpecialiteLabel(emp.specialite) }}) }
+                </option>
+              }
+            </select>
+          </div>
+
+          <div class="rdv-search-box">
+            <i class="pi pi-search"></i>
+            <input type="text" placeholder="Rechercher un client (nom, téléphone)..."
+              [ngModel]="rdvSearch()" (ngModelChange)="rdvSearch.set($event)" />
+            @if (rdvSearch()) {
+              <button (click)="rdvSearch.set('')"><i class="pi pi-times"></i></button>
             }
-          </tbody>
-        </table>
-      }
-    </div>
+          </div>
+        </div>
+
+        <!-- Active filters summary -->
+        @if (rdvFilterTypeClient() !== 'ALL' || rdvFilterStatut() !== 'ALL' || rdvFilterEmployeeStr() !== 'ALL' || rdvSearch()) {
+          <div class="rdv-active-filters">
+            <span class="rdv-results-count">
+              <i class="pi pi-filter"></i>
+              {{ filteredRdv().length }} résultat(s)
+            </span>
+            <button class="rdv-clear-filters" (click)="rdvFilterTypeClient.set('ALL'); rdvFilterStatut.set('ALL'); rdvFilterEmployeeStr.set('ALL'); rdvSearch.set('')">
+              <i class="pi pi-times"></i> Effacer les filtres
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- RDV Table -->
+      <div class="table-card">
+        @if (rdvLoading()) {
+          <div class="table-loader">
+            <i class="pi pi-spin pi-spinner"></i>
+            <span>Chargement des rendez-vous...</span>
+          </div>
+        } @else if (filteredRdv().length === 0) {
+          <div class="table-empty">
+            <div class="empty-icon">📅</div>
+            <h3>Aucun rendez-vous trouvé</h3>
+            <p>
+              {{ (rdvFilterTypeClient() !== 'ALL' || rdvFilterStatut() !== 'ALL' || rdvFilterEmployeeStr() !== 'ALL' || rdvSearch())
+                ? 'Aucun résultat pour ces filtres.'
+                : 'Aucun rendez-vous enregistré pour le moment.' }}
+            </p>
+          </div>
+        } @else {
+          <div class="rdv-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Type</th>
+                  <th>Services & Employées</th>
+                  <th>Date début</th>
+                  <th>Durée</th>
+                  <th>Statut</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (rdv of filteredRdv(); track rdv.id) {
+                  <tr [class.inactive-row]="rdv.statut === StatutRendezVous.ANNULE">
+
+                    <!-- Client -->
+                    <td>
+                      <div class="user-cell">
+                        <div class="rdv-client-avatar">{{ getClientInitials(rdv) }}</div>
+                        <div>
+                          <span class="user-name">{{ rdv.prenomClient }} {{ rdv.nomClient }}</span>
+                          @if (rdv.telephoneClient) {
+                            <span class="user-email">
+                              <i class="pi pi-phone" style="font-size:0.65rem; color:var(--gold-500)"></i>
+                              {{ rdv.telephoneClient }}
+                            </span>
+                          }
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- Type -->
+                    <td>
+                      <span [class]="rdv.typeClient === TypeClient.MARIAGE ? 'rdv-type-badge rdv-type--mariage' : 'rdv-type-badge rdv-type--normal'">
+                        {{ getTypeClientLabel(rdv.typeClient) }}
+                      </span>
+                    </td>
+
+                    <!-- Services -->
+                    <td>
+                      <div class="rdv-services-cell">
+                        @for (srv of rdv.services; track srv.id) {
+                          <div class="rdv-service-line">
+                            <span class="rdv-svc-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                            @if (srv.employeeNom) {
+                              <span class="rdv-svc-emp">
+                                <i class="pi pi-user"></i>
+                                {{ srv.employeePrenom }} {{ srv.employeeNom }}
+                              </span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </td>
+
+                    <!-- Date -->
+                    <td>
+                      <span class="rdv-date-cell">
+                        <i class="pi pi-calendar"></i>
+                        {{ formatDate(rdv.dateDebut) }}
+                      </span>
+                    </td>
+
+                    <!-- Durée -->
+                    <td>
+                      <span class="rdv-duree-badge">
+                        <i class="pi pi-clock"></i>{{ rdv.nbHeures }}h
+                      </span>
+                    </td>
+
+                    <!-- Statut -->
+                    <td>
+                      <span [class]="'rdv-statut-badge rdv-statut--' + getStatutClass(rdv.statut)">
+                        {{ getStatutLabel(rdv.statut) }}
+                      </span>
+                    </td>
+
+                    <!-- Action -->
+                    <td>
+                      <button class="action-btn edit" (click)="openRdvDetail(rdv)" title="Voir le détail">
+                        <i class="pi pi-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
 
   </main>
 </div>
 
-<!-- ══ MODAL ════════════════════════════════════════════════════ -->
+<!-- ══ STAFF MODAL ══════════════════════════════════════════════ -->
 @if (showModal()) {
   <div class="modal-overlay" (click)="closeModal()">
     <div class="modal" (click)="$event.stopPropagation()">
@@ -302,25 +536,14 @@
       <div class="modal__body">
 
         @if (modalMode() === 'create') {
-          <!-- ── CREATE FORM ─────────────────────────── -->
-
-          <!-- Role selector -->
           <div class="modal-role-selector">
-            <button type="button"
-              class="modal-role-btn"
-              [class.active]="form.role === Role.EMPLOYEE"
-              (click)="form.role = Role.EMPLOYEE"
-            >
-              <i class="pi pi-briefcase"></i>
-              Employée
+            <button type="button" class="modal-role-btn" [class.active]="form.role === Role.EMPLOYEE"
+              (click)="form.role = Role.EMPLOYEE">
+              <i class="pi pi-briefcase"></i> Employée
             </button>
-            <button type="button"
-              class="modal-role-btn"
-              [class.active]="form.role === Role.RECEPTIONIST"
-              (click)="form.role = Role.RECEPTIONIST"
-            >
-              <i class="pi pi-desktop"></i>
-              Réceptionniste
+            <button type="button" class="modal-role-btn" [class.active]="form.role === Role.RECEPTIONIST"
+              (click)="form.role = Role.RECEPTIONIST">
+              <i class="pi pi-desktop"></i> Réceptionniste
             </button>
           </div>
 
@@ -334,17 +557,14 @@
               <input type="text" [(ngModel)]="form.nom" class="modal-input" placeholder="Nom" />
             </div>
           </div>
-
           <div class="modal-form-group">
             <label>Email *</label>
             <input type="email" [(ngModel)]="form.email" class="modal-input" placeholder="email@exemple.com" />
           </div>
-
           <div class="modal-form-group">
             <label>Téléphone</label>
             <input type="tel" [(ngModel)]="form.telephone" class="modal-input" placeholder="+216 xx xxx xxx" />
           </div>
-
           <div class="modal-form-grid">
             <div class="modal-form-group">
               <label>Mot de passe *</label>
@@ -364,21 +584,13 @@
           </div>
 
         } @else {
-          <!-- ── EDIT FORM ───────────────────────────── -->
-
           <div class="modal-role-selector">
-            <button type="button"
-              class="modal-role-btn"
-              [class.active]="editForm.role === Role.EMPLOYEE"
-              (click)="editForm.role = Role.EMPLOYEE"
-            >
+            <button type="button" class="modal-role-btn" [class.active]="editForm.role === Role.EMPLOYEE"
+              (click)="editForm.role = Role.EMPLOYEE">
               <i class="pi pi-briefcase"></i> Employée
             </button>
-            <button type="button"
-              class="modal-role-btn"
-              [class.active]="editForm.role === Role.RECEPTIONIST"
-              (click)="editForm.role = Role.RECEPTIONIST"
-            >
+            <button type="button" class="modal-role-btn" [class.active]="editForm.role === Role.RECEPTIONIST"
+              (click)="editForm.role = Role.RECEPTIONIST">
               <i class="pi pi-desktop"></i> Réceptionniste
             </button>
           </div>
@@ -393,12 +605,10 @@
               <input type="text" [(ngModel)]="editForm.nom" class="modal-input" />
             </div>
           </div>
-
           <div class="modal-form-group">
             <label>Email *</label>
             <input type="email" [(ngModel)]="editForm.email" class="modal-input" />
           </div>
-
           <div class="modal-form-group">
             <label>Téléphone</label>
             <input type="tel" [(ngModel)]="editForm.telephone" class="modal-input" />
@@ -410,8 +620,8 @@
                 <label>Spécialité</label>
                 <select [(ngModel)]="editForm.specialite" class="modal-input modal-select">
                   <option value="">Choisir...</option>
-                  @for (sp of specialites; track sp) {
-                    <option [value]="sp">{{ sp }}</option>
+                  @for (sp of specialites; track sp.value) {
+                    <option [value]="sp.value">{{ sp.label }}</option>
                   }
                 </select>
               </div>
@@ -436,31 +646,120 @@
 
         @if (modalError()) {
           <div class="modal-error">
-            <i class="pi pi-exclamation-triangle"></i>
-            {{ modalError() }}
+            <i class="pi pi-exclamation-triangle"></i>{{ modalError() }}
           </div>
         }
       </div>
 
       <div class="modal__footer">
-        <button class="modal-btn-cancel" (click)="closeModal()" [disabled]="modalLoading()">
-          Annuler
-        </button>
-        <button
-          class="modal-btn-submit"
-          [disabled]="modalLoading()"
-          (click)="modalMode() === 'create' ? submitCreate() : submitEdit()"
-        >
-          @if (modalLoading()) {
-            <i class="pi pi-spin pi-spinner"></i> En cours...
-          } @else if (modalMode() === 'create') {
-            <i class="pi pi-check"></i> Créer le compte
-          } @else {
-            <i class="pi pi-check"></i> Sauvegarder
-          }
+        <button class="modal-btn-cancel" (click)="closeModal()" [disabled]="modalLoading()">Annuler</button>
+        <button class="modal-btn-submit" [disabled]="modalLoading()"
+          (click)="modalMode() === 'create' ? submitCreate() : submitEdit()">
+          @if (modalLoading()) { <i class="pi pi-spin pi-spinner"></i> En cours... }
+          @else if (modalMode() === 'create') { <i class="pi pi-check"></i> Créer le compte }
+          @else { <i class="pi pi-check"></i> Sauvegarder }
         </button>
       </div>
 
+    </div>
+  </div>
+}
+
+<!-- ══ RDV DETAIL MODAL ═════════════════════════════════════════ -->
+@if (showRdvDetail() && selectedRdv()) {
+  <div class="modal-overlay" (click)="closeRdvDetail()">
+    <div class="rdv-detail-modal" (click)="$event.stopPropagation()">
+
+      <div class="rdv-detail-header">
+        <div class="rdv-detail-icon">
+          <i class="pi pi-calendar"></i>
+        </div>
+        <div>
+          <h2>Détail du Rendez-vous #{{ selectedRdv()!.id }}</h2>
+          <p class="rdv-detail-badges">
+            <span [class]="selectedRdv()!.typeClient === TypeClient.MARIAGE
+              ? 'rdv-type-badge rdv-type--mariage' : 'rdv-type-badge rdv-type--normal'">
+              {{ getTypeClientLabel(selectedRdv()!.typeClient) }}
+            </span>
+            <span [class]="'rdv-statut-badge rdv-statut--' + getStatutClass(selectedRdv()!.statut)">
+              {{ getStatutLabel(selectedRdv()!.statut) }}
+            </span>
+          </p>
+        </div>
+        <button class="modal__close" (click)="closeRdvDetail()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="rdv-detail-body">
+
+        <!-- Client -->
+        <div class="rdv-detail-section">
+          <h4><i class="pi pi-user"></i> Informations client</h4>
+          <div class="rdv-info-grid">
+            <div class="rdv-info-item">
+              <span class="rdv-info-label">Prénom</span>
+              <span class="rdv-info-value">{{ selectedRdv()!.prenomClient }}</span>
+            </div>
+            <div class="rdv-info-item">
+              <span class="rdv-info-label">Nom</span>
+              <span class="rdv-info-value">{{ selectedRdv()!.nomClient }}</span>
+            </div>
+            @if (selectedRdv()!.telephoneClient) {
+              <div class="rdv-info-item">
+                <span class="rdv-info-label">Téléphone</span>
+                <span class="rdv-info-value">
+                  <i class="pi pi-phone" style="font-size:0.7rem; color:var(--gold-500)"></i>
+                  {{ selectedRdv()!.telephoneClient }}
+                </span>
+              </div>
+            }
+            <div class="rdv-info-item">
+              <span class="rdv-info-label">Créé par</span>
+              <span class="rdv-info-value">{{ selectedRdv()!.createdByPrenom }} {{ selectedRdv()!.createdByNom }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Planning -->
+        <div class="rdv-detail-section">
+          <h4><i class="pi pi-clock"></i> Planning</h4>
+          <div class="rdv-info-grid">
+            <div class="rdv-info-item">
+              <span class="rdv-info-label">Début</span>
+              <span class="rdv-info-value">{{ formatDate(selectedRdv()!.dateDebut) }}</span>
+            </div>
+            <div class="rdv-info-item">
+              <span class="rdv-info-label">Fin</span>
+              <span class="rdv-info-value">{{ formatDate(selectedRdv()!.dateFin) }}</span>
+            </div>
+            <div class="rdv-info-item">
+              <span class="rdv-info-label">Durée</span>
+              <span class="rdv-info-value">{{ selectedRdv()!.nbHeures }} heure(s)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Services -->
+        <div class="rdv-detail-section">
+          <h4><i class="pi pi-list"></i> Services & Employées assignées</h4>
+          @for (srv of selectedRdv()!.services; track srv.id) {
+            <div class="rdv-service-detail-row">
+              <span class="rdv-svc-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
+              <div class="rdv-svc-emp-info">
+                <span class="rdv-svc-emp-name">
+                  <i class="pi pi-user"></i>
+                  {{ srv.employeePrenom }} {{ srv.employeeNom }}
+                </span>
+                @if (srv.employeeSpecialite) {
+                  <span class="rdv-svc-specialite">{{ srv.employeeSpecialite }}</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+      </div>
     </div>
   </div>
 }

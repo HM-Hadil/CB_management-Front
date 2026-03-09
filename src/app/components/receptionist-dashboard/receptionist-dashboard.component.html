@@ -1,6 +1,6 @@
 <div class="dashboard-layout">
 
-  <!-- SIDEBAR -->
+  <!-- ══ SIDEBAR ══════════════════════════════════════════════════ -->
   <aside class="sidebar">
     <div class="sidebar__logo">
       <div class="logo-icon"><span>الغنجة</span></div>
@@ -11,13 +11,20 @@
     </div>
 
     <nav class="sidebar__nav">
-      <button class="nav-item" [class.active]="activeTab() === 'profile'" (click)="activeTab.set('profile')">
+      <button class="nav-item" [class.active]="activeTab() === 'profile'" (click)="setTab('profile')">
         <i class="pi pi-user-edit"></i>
         <span>Mon Profil</span>
       </button>
-      <button class="nav-item" [class.active]="activeTab() === 'password'" (click)="activeTab.set('password')">
+      <button class="nav-item" [class.active]="activeTab() === 'password'" (click)="setTab('password')">
         <i class="pi pi-lock"></i>
         <span>Mot de passe</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab() === 'rendez-vous'" (click)="setTab('rendez-vous')">
+        <i class="pi pi-calendar"></i>
+        <span>Rendez-vous</span>
+        @if (rdvEnAttente() > 0) {
+          <span class="nav-badge">{{ rdvEnAttente() }}</span>
+        }
       </button>
     </nav>
 
@@ -33,48 +40,52 @@
     </div>
   </aside>
 
-  <!-- MAIN -->
+  <!-- ══ MAIN CONTENT ════════════════════════════════════════════ -->
   <main class="main-content">
 
+    <!-- TOPBAR -->
     <header class="topbar">
       <div>
         <h1 class="page-title">
-          {{ activeTab() === 'profile' ? 'Mon Profil' : 'Changer le mot de passe' }}
+          @if (activeTab() === 'profile') { Mon Profil }
+          @else if (activeTab() === 'password') { Changer le mot de passe }
+          @else { Gestion des Rendez-vous }
         </h1>
         <p class="page-sub">
-          {{ activeTab() === 'profile' ? 'Mettez à jour vos informations personnelles' : 'Modifiez votre mot de passe de connexion' }}
+          @if (activeTab() === 'profile') { Mettez à jour vos informations personnelles }
+          @else if (activeTab() === 'password') { Modifiez votre mot de passe de connexion }
+          @else { Créer, modifier et suivre les rendez-vous }
         </p>
       </div>
     </header>
 
-    @if (loading()) {
+    @if (loading() && activeTab() !== 'rendez-vous') {
       <div class="page-loader">
         <i class="pi pi-spin pi-spinner"></i>
         <span>Chargement...</span>
       </div>
     } @else {
 
-      <!-- PROFILE HERO -->
-      <div class="profile-hero">
-        <div class="profile-avatar">{{ getInitials() }}</div>
-        <div class="profile-hero__info">
-          <h2>{{ profile()?.prenom }} {{ profile()?.nom }}</h2>
-          <p>{{ profile()?.email }}</p>
-          <div class="profile-tags">
-            <span class="tag tag--purple">
-              <i class="pi pi-desktop"></i> Réceptionniste
-            </span>
-            @if (profile()?.telephone) {
-              <span class="tag tag--gray">
-                <i class="pi pi-phone"></i> {{ profile()?.telephone }}
+      <!-- ══ PROFILE TAB ══════════════════════════════════════════ -->
+      @if (activeTab() === 'profile') {
+        <div class="profile-hero">
+          <div class="profile-avatar">{{ getInitials() }}</div>
+          <div class="profile-hero__info">
+            <h2>{{ profile()?.prenom }} {{ profile()?.nom }}</h2>
+            <p>{{ profile()?.email }}</p>
+            <div class="profile-tags">
+              <span class="tag tag--rose">
+                <i class="pi pi-desktop"></i> Réceptionniste
               </span>
-            }
+              @if (profile()?.telephone) {
+                <span class="tag tag--gray">
+                  <i class="pi pi-phone"></i> {{ profile()?.telephone }}
+                </span>
+              }
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- PROFILE TAB -->
-      @if (activeTab() === 'profile') {
         <div class="form-card">
           <div class="form-card__header">
             <div class="form-card__icon">
@@ -82,78 +93,47 @@
             </div>
             <div>
               <h3>Informations personnelles</h3>
-              <p>Mettez à jour votre numéro de téléphone</p>
+              <p>Mettez à jour vos informations de contact</p>
             </div>
           </div>
+          <div class="form-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label><i class="pi pi-user"></i> Prénom</label>
+                <input type="text" [(ngModel)]="profileForm.prenom" class="luxury-input" placeholder="Prénom" />
+              </div>
+              <div class="form-group">
+                <label><i class="pi pi-user"></i> Nom</label>
+                <input type="text" [(ngModel)]="profileForm.nom" class="luxury-input" placeholder="Nom" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label><i class="pi pi-envelope"></i> Email</label>
+              <input type="email" [(ngModel)]="profileForm.email" class="luxury-input" placeholder="votre@email.com" />
+            </div>
+            <div class="form-group">
+              <label><i class="pi pi-phone"></i> Téléphone</label>
+              <input type="tel" [(ngModel)]="profileForm.telephone" class="luxury-input" placeholder="+216 xx xxx xxx" />
+            </div>
 
-      <div class="form-body">
+            @if (error() && activeTab() === 'profile') {
+              <div class="alert alert--error"><i class="pi pi-exclamation-triangle"></i> {{ error() }}</div>
+            }
+            @if (success()) {
+              <div class="alert alert--success"><i class="pi pi-check-circle"></i> {{ success() }}</div>
+            }
 
-  <div class="form-grid">
-    <div class="form-group">
-      <label><i class="pi pi-user"></i> Prénom</label>
-      <input
-        type="text"
-        [(ngModel)]="profileForm.prenom"
-        class="luxury-input"
-        placeholder="Prénom"
-      />
-    </div>
-    <div class="form-group">
-      <label><i class="pi pi-user"></i> Nom</label>
-      <input
-        type="text"
-        [(ngModel)]="profileForm.nom"
-        class="luxury-input"
-        placeholder="Nom"
-      />
-    </div>
-  </div>
-
-  <div class="form-group">
-    <label><i class="pi pi-envelope"></i> Email</label>
-    <input
-      type="email"
-      [(ngModel)]="profileForm.email"
-      class="luxury-input"
-      placeholder="votre@email.com"
-    />
-  </div>
-
-  <div class="form-group">
-    <label><i class="pi pi-phone"></i> Téléphone</label>
-    <input
-      type="tel"
-      [(ngModel)]="profileForm.telephone"
-      class="luxury-input"
-      placeholder="+216 xx xxx xxx"
-    />
-  </div>
-
-  @if (error() && activeTab() === 'profile') {
-    <div class="alert alert--error">
-      <i class="pi pi-exclamation-triangle"></i> {{ error() }}
-    </div>
-  }
-  @if (success()) {
-    <div class="alert alert--success">
-      <i class="pi pi-check-circle"></i> {{ success() }}
-    </div>
-  }
-
-  <div class="form-actions">
-    <button class="btn-save" (click)="saveProfile()" [disabled]="saveLoading()">
-      @if (saveLoading()) {
-        <i class="pi pi-spin pi-spinner"></i> Sauvegarde...
-      } @else {
-        <i class="pi pi-check"></i> Sauvegarder
-      }
-    </button>
-  </div>
-</div>
+            <div class="form-actions">
+              <button class="btn-save" (click)="saveProfile()" [disabled]="saveLoading()">
+                @if (saveLoading()) { <i class="pi pi-spin pi-spinner"></i> Sauvegarde... }
+                @else { <i class="pi pi-check"></i> Sauvegarder }
+              </button>
+            </div>
+          </div>
         </div>
       }
 
-      <!-- PASSWORD TAB -->
+      <!-- ══ PASSWORD TAB ══════════════════════════════════════════ -->
       @if (activeTab() === 'password') {
         <div class="form-card">
           <div class="form-card__header">
@@ -165,7 +145,6 @@
               <p>Utilisez un mot de passe fort d'au moins 6 caractères</p>
             </div>
           </div>
-
           <div class="form-body">
             <div class="form-group">
               <label><i class="pi pi-lock"></i> Mot de passe actuel</label>
@@ -177,7 +156,6 @@
                 </button>
               </div>
             </div>
-
             <div class="form-group">
               <label><i class="pi pi-lock"></i> Nouveau mot de passe</label>
               <div class="input-toggle">
@@ -188,41 +166,494 @@
                 </button>
               </div>
             </div>
-
             <div class="form-group">
               <label><i class="pi pi-lock"></i> Confirmer le nouveau mot de passe</label>
               <input [type]="showNewPw() ? 'text' : 'password'"
                 [(ngModel)]="passwordForm.confirmPassword" class="luxury-input" placeholder="Répétez le mot de passe" />
               @if (passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword) {
-                <span class="field-error">
-                  <i class="pi pi-times-circle"></i> Les mots de passe ne correspondent pas
-                </span>
+                <span class="field-error"><i class="pi pi-times-circle"></i> Les mots de passe ne correspondent pas</span>
               }
             </div>
 
             @if (error() && activeTab() === 'password') {
-              <div class="alert alert--error">
-                <i class="pi pi-exclamation-triangle"></i> {{ error() }}
-              </div>
+              <div class="alert alert--error"><i class="pi pi-exclamation-triangle"></i> {{ error() }}</div>
             }
             @if (success()) {
-              <div class="alert alert--success">
-                <i class="pi pi-check-circle"></i> {{ success() }}
-              </div>
+              <div class="alert alert--success"><i class="pi pi-check-circle"></i> {{ success() }}</div>
             }
 
             <div class="form-actions">
               <button class="btn-save btn-save--gold" (click)="savePassword()" [disabled]="saveLoading()">
-                @if (saveLoading()) {
-                  <i class="pi pi-spin pi-spinner"></i> Modification...
-                } @else {
-                  <i class="pi pi-shield"></i> Modifier le mot de passe
-                }
+                @if (saveLoading()) { <i class="pi pi-spin pi-spinner"></i> Modification... }
+                @else { <i class="pi pi-shield"></i> Modifier le mot de passe }
               </button>
             </div>
           </div>
         </div>
       }
+
+      <!-- ══ RENDEZ-VOUS TAB ══════════════════════════════════════ -->
+      @if (activeTab() === 'rendez-vous') {
+
+        <!-- Stats -->
+        <div class="stats-row">
+          <div class="stat-card stat-card--gold">
+            <div class="stat-icon"><i class="pi pi-calendar"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ totalRdv() }}</span>
+              <span class="stat-label">Total RDV</span>
+            </div>
+          </div>
+          <div class="stat-card stat-card--amber">
+            <div class="stat-icon"><i class="pi pi-clock"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ rdvEnAttente() }}</span>
+              <span class="stat-label">En attente</span>
+            </div>
+          </div>
+          <div class="stat-card stat-card--green">
+            <div class="stat-icon"><i class="pi pi-check-circle"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ rdvConfirme() }}</span>
+              <span class="stat-label">Confirmés</span>
+            </div>
+          </div>
+          <div class="stat-card stat-card--rose">
+            <div class="stat-icon"><i class="pi pi-sun"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ rdvAujourdhui() }}</span>
+              <span class="stat-label">Aujourd'hui</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="rdv-controls">
+          <div class="search-box">
+            <i class="pi pi-search"></i>
+            <input
+              type="text"
+              placeholder="Rechercher par nom ou téléphone..."
+              [ngModel]="rdvSearchQuery()"
+              (ngModelChange)="rdvSearchQuery.set($event)"
+            />
+            @if (rdvSearchQuery()) {
+              <button class="clear-search" (click)="rdvSearchQuery.set('')">
+                <i class="pi pi-times"></i>
+              </button>
+            }
+          </div>
+          <div class="rdv-controls__right">
+            <button class="btn-refresh" (click)="loadRendezVous()" title="Actualiser">
+              <i class="pi pi-refresh"></i>
+            </button>
+            <button class="btn-create-rdv" (click)="openCreateModal()">
+              <i class="pi pi-plus"></i>
+              Nouveau rendez-vous
+            </button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-card">
+          @if (rdvLoading()) {
+            <div class="table-loader">
+              <i class="pi pi-spin pi-spinner"></i>
+              <span>Chargement des rendez-vous...</span>
+            </div>
+          } @else if (filteredRdv().length === 0) {
+            <div class="table-empty">
+              <div class="empty-icon">📅</div>
+              <h3>Aucun rendez-vous trouvé</h3>
+              <p>{{ rdvSearchQuery() ? 'Aucun résultat pour votre recherche.' : 'Créez le premier rendez-vous.' }}</p>
+              @if (!rdvSearchQuery()) {
+                <button class="btn-create-rdv" (click)="openCreateModal()">
+                  <i class="pi pi-plus"></i> Nouveau rendez-vous
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="table-wrapper">
+              <table class="rdv-table">
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Services</th>
+                    <th>Date & Heure</th>
+                    <th>Durée</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (rdv of filteredRdv(); track rdv.id) {
+                    <tr [class.row-annule]="rdv.statut === StatutRendezVous.ANNULE"
+                        [class.row-termine]="rdv.statut === StatutRendezVous.TERMINE">
+                      <!-- Client -->
+                      <td>
+                        <div class="client-cell">
+                          <div class="client-avatar">{{ getClientInitials(rdv) }}</div>
+                          <div class="client-info">
+                            <span class="client-name">{{ rdv.prenomClient }} {{ rdv.nomClient }}</span>
+                            @if (rdv.telephoneClient) {
+                              <span class="client-phone"><i class="pi pi-phone"></i> {{ rdv.telephoneClient }}</span>
+                            }
+                            <span class="client-type-badge"
+                              [class.mariage]="rdv.typeClient === TypeClient.MARIAGE">
+                              {{ getTypeClientLabel(rdv.typeClient) }}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Services -->
+                      <td>
+                        <div class="services-list">
+                          @for (srv of rdv.services; track srv.id) {
+                            <div class="service-item">
+                              <span class="service-name">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                              <span class="service-employee">
+                                <i class="pi pi-user"></i> {{ srv.employeePrenom }} {{ srv.employeeNom }}
+                              </span>
+                            </div>
+                          }
+                        </div>
+                      </td>
+
+                      <!-- Date -->
+                      <td>
+                        <span class="date-cell">
+                          <i class="pi pi-calendar"></i>
+                          {{ formatDate(rdv.dateDebut) }}
+                        </span>
+                      </td>
+
+                      <!-- Durée -->
+                      <td>
+                        <span class="duree-badge">
+                          <i class="pi pi-clock"></i>
+                          {{ rdv.nbHeures }}h
+                        </span>
+                      </td>
+
+                      <!-- Statut -->
+                      <td>
+                        <span [class]="'statut-badge statut-badge--' + getStatutClass(rdv.statut)">
+                          {{ getStatutLabel(rdv.statut) }}
+                        </span>
+                      </td>
+
+                      <!-- Actions -->
+                      <td>
+                        <div class="action-btns">
+                          @if (canEdit(rdv)) {
+                            <button class="action-btn action-btn--edit" (click)="openEditModal(rdv)" title="Modifier">
+                              <i class="pi pi-pencil"></i>
+                            </button>
+                          }
+                          @if (rdv.statut === StatutRendezVous.EN_ATTENTE) {
+                            <button class="action-btn action-btn--confirm"
+                              (click)="changerStatut(rdv.id, StatutRendezVous.CONFIRME)"
+                              title="Confirmer">
+                              <i class="pi pi-check"></i>
+                            </button>
+                          }
+                          @if (rdv.statut !== StatutRendezVous.ANNULE && rdv.statut !== StatutRendezVous.TERMINE) {
+                            <button class="action-btn action-btn--finish"
+                              (click)="changerStatut(rdv.id, StatutRendezVous.TERMINE)"
+                              title="Terminer">
+                              <i class="pi pi-flag"></i>
+                            </button>
+                            <button class="action-btn action-btn--cancel"
+                              (click)="changerStatut(rdv.id, StatutRendezVous.ANNULE)"
+                              title="Annuler">
+                              <i class="pi pi-times"></i>
+                            </button>
+                          }
+                          <button class="action-btn action-btn--delete"
+                            (click)="confirmDelete(rdv.id)" title="Supprimer">
+                            <i class="pi pi-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <!-- Delete confirm row -->
+                    @if (deleteConfirmId() === rdv.id) {
+                      <tr class="confirm-row">
+                        <td colspan="6">
+                          <div class="confirm-delete">
+                            <i class="pi pi-exclamation-triangle"></i>
+                            <span>Supprimer définitivement le rendez-vous de
+                              <strong>{{ rdv.prenomClient }} {{ rdv.nomClient }}</strong> ?
+                            </span>
+                            <div class="confirm-actions">
+                              <button class="confirm-yes" (click)="deleteRdv(rdv.id)">
+                                <i class="pi pi-check"></i> Supprimer
+                              </button>
+                              <button class="confirm-no" (click)="cancelDelete()">
+                                <i class="pi pi-times"></i> Annuler
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
     }
   </main>
 </div>
+
+<!-- ══ MODAL RENDEZ-VOUS ════════════════════════════════════════ -->
+@if (showRdvModal()) {
+  <div class="modal-overlay" (click)="closeRdvModal()">
+    <div class="rdv-modal" (click)="$event.stopPropagation()">
+
+      <!-- Header -->
+      <div class="rdv-modal__header">
+        <div class="rdv-modal__icon">
+          <i class="pi {{ rdvModalMode() === 'create' ? 'pi-calendar-plus' : 'pi-pencil' }}"></i>
+        </div>
+        <div>
+          <h2>{{ rdvModalMode() === 'create' ? 'Nouveau Rendez-vous' : 'Modifier le Rendez-vous' }}</h2>
+          <p>{{ rdvModalMode() === 'create' ? 'Remplissez les informations du rendez-vous' : 'Modifiez les informations ci-dessous' }}</p>
+        </div>
+        <button class="rdv-modal__close" (click)="closeRdvModal()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="rdv-modal__body">
+
+        <!-- Section : Informations client -->
+        <div class="modal-section">
+          <div class="modal-section__title">
+            <i class="pi pi-user"></i> Informations client
+          </div>
+          <div class="modal-form-grid">
+            <div class="modal-form-group">
+              <label>Prénom *</label>
+              <input type="text" [(ngModel)]="rdvForm.prenomClient"
+                class="modal-input" placeholder="Prénom du client" />
+            </div>
+            <div class="modal-form-group">
+              <label>Nom *</label>
+              <input type="text" [(ngModel)]="rdvForm.nomClient"
+                class="modal-input" placeholder="Nom du client" />
+            </div>
+          </div>
+          <div class="modal-form-grid">
+            <div class="modal-form-group">
+              <label>Téléphone</label>
+              <input type="tel" [(ngModel)]="rdvForm.telephoneClient"
+                class="modal-input" placeholder="+216 xx xxx xxx" />
+            </div>
+            <div class="modal-form-group">
+              <label>Type de client *</label>
+              <div class="radio-group">
+                <label class="radio-option">
+                  <input type="radio" [(ngModel)]="rdvForm.typeClient"
+                    [value]="TypeClient.NORMAL" name="typeClient" />
+                  <span class="radio-label">Normal</span>
+                </label>
+                <label class="radio-option radio-option--mariage">
+                  <input type="radio" [(ngModel)]="rdvForm.typeClient"
+                    [value]="TypeClient.MARIAGE" name="typeClient" />
+                  <span class="radio-label">💍 Mariage</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section : Planification -->
+        <div class="modal-section">
+          <div class="modal-section__title">
+            <i class="pi pi-calendar"></i> Planification
+          </div>
+          <div class="modal-form-grid">
+            <div class="modal-form-group">
+              <label>Date et heure de début *</label>
+              <input type="datetime-local" [(ngModel)]="rdvForm.dateDebut"
+                class="modal-input" (change)="onDateOrHoursChange()" />
+            </div>
+            <div class="modal-form-group">
+              <label>Durée (heures) *</label>
+              <div class="input-with-unit">
+                <input type="number" [(ngModel)]="rdvForm.nbHeures"
+                  class="modal-input" min="1" max="12" (change)="onDateOrHoursChange()" />
+                <span class="unit-label">heures</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section : Services -->
+        <div class="modal-section">
+          <div class="modal-section__title">
+            <i class="pi pi-star"></i> Services
+            <span class="section-hint">Sélectionnez un service puis un employé disponible</span>
+          </div>
+
+          @for (srv of rdvForm.services; track $index; let i = $index) {
+            <div class="service-row">
+              <div class="service-row__number">{{ i + 1 }}</div>
+
+              <div class="service-row__fields">
+                <!-- Type de service -->
+                <div class="modal-form-group">
+                  <label>Type de service *</label>
+                  @if (serviceGroups().length > 0) {
+                    <select [(ngModel)]="srv.typeService"
+                      class="modal-input modal-select"
+                      (ngModelChange)="onTypeServiceChange(i)">
+                      <option value="">Sélectionner un service...</option>
+                      @for (group of serviceGroups(); track group.specialite) {
+                        <optgroup [label]="getSpecialiteLabel(group.specialite)">
+                          @for (ts of group.services; track ts) {
+                            <option [value]="ts">{{ getTypeServiceLabel(ts) }}</option>
+                          }
+                        </optgroup>
+                      }
+                    </select>
+                  } @else {
+                    <select [(ngModel)]="srv.typeService"
+                      class="modal-input modal-select"
+                      (ngModelChange)="onTypeServiceChange(i)">
+                      <option value="">Sélectionner un service...</option>
+                      <optgroup label="Soins">
+                        <option value="SOIN_VISAGE">Soin visage</option>
+                        <option value="SOIN_PIED">Soin pied</option>
+                        <option value="SOIN_MAIN">Soin main</option>
+                        <option value="HYDRAFACIALE">Hydrafaciale</option>
+                      </optgroup>
+                      <optgroup label="Coiffeuse">
+                        <option value="COUPE">Coupe</option>
+                        <option value="PROTEINE">Protéine</option>
+                        <option value="COLORATION_SIMPLE">Coloration simple</option>
+                        <option value="BALAYAGE">Balayage</option>
+                        <option value="SOIN_CAPILLAIRE">Soin capillaire</option>
+                        <option value="BRUSHING">Brushing</option>
+                      </optgroup>
+                      <optgroup label="Esthéticienne">
+                        <option value="EPILATION_VISAGE">Épilation visage</option>
+                        <option value="EPILATION_MOUSTACHE">Épilation moustache</option>
+                        <option value="EPILATION_SOURCILS">Épilation sourcils</option>
+                      </optgroup>
+                      <optgroup label="Onglerie">
+                        <option value="VERNIS_PERMANENT_MAIN">Vernis permanent (main)</option>
+                        <option value="VERNIS_PERMANENT_PIED">Vernis permanent (pied)</option>
+                        <option value="GEL_SUR_ONGLE_NATURELLE">Gel ongle naturelle</option>
+                        <option value="GEL_CAPSULE">Gel capsule</option>
+                        <option value="DEPOSE_VERNIS">Dépose vernis</option>
+                      </optgroup>
+                      <optgroup label="Maquillage">
+                        <option value="MAQUILLAGE">Maquillage</option>
+                      </optgroup>
+                    </select>
+                  }
+                </div>
+
+                <!-- Employé disponible -->
+                <div class="modal-form-group">
+                  <label>
+                    Employée disponible
+                    @if (rdvForm.typeClient === TypeClient.MARIAGE) {
+                      <span class="optional-badge">optionnel</span>
+                    } @else {
+                      <span class="required-star">*</span>
+                    }
+                  </label>
+                  @if (srv.loadingEmployees) {
+                    <div class="loading-employees">
+                      <i class="pi pi-spin pi-spinner"></i>
+                      <span>Recherche des disponibilités...</span>
+                    </div>
+                  } @else if (!srv.typeService || !rdvForm.dateDebut || rdvForm.nbHeures < 1) {
+                    <div class="employee-hint">
+                      <i class="pi pi-info-circle"></i>
+                      Sélectionnez un service, une date et une durée
+                    </div>
+                  } @else if (srv.availableEmployees.length === 0) {
+                    <div [class]="rdvForm.typeClient === TypeClient.MARIAGE ? 'no-employees-mariage' : 'no-employees'">
+                      <i class="pi pi-{{ rdvForm.typeClient === TypeClient.MARIAGE ? 'info-circle' : 'exclamation-circle' }}"></i>
+                      @if (rdvForm.typeClient === TypeClient.MARIAGE) {
+                        Aucune employée disponible — vous pouvez continuer sans en assigner une
+                      } @else {
+                        Aucune employée disponible pour ce créneau
+                      }
+                    </div>
+                  } @else {
+                    <select [(ngModel)]="srv.employeeId" class="modal-input modal-select">
+                      <option [ngValue]="null">Sélectionner une employée...</option>
+                      @for (emp of srv.availableEmployees; track emp.id) {
+                        <option [ngValue]="emp.id">
+                          {{ emp.prenom }} {{ emp.nom }}
+                          @if (emp.specialite) { — {{ emp.specialite }} }
+                        </option>
+                      }
+                    </select>
+                  }
+                </div>
+              </div>
+
+              <!-- Remove button -->
+              @if (rdvForm.services.length > 1) {
+                <button class="service-remove-btn" (click)="removeServiceRow(i)" title="Retirer ce service">
+                  <i class="pi pi-minus-circle"></i>
+                </button>
+              }
+            </div>
+          }
+
+          <button class="btn-add-service" (click)="addServiceRow()">
+            <i class="pi pi-plus-circle"></i>
+            Ajouter un autre service
+          </button>
+        </div>
+
+        <!-- Error -->
+        @if (rdvModalError()) {
+          <div class="modal-error">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ rdvModalError() }}
+          </div>
+        }
+      </div>
+
+      <!-- Footer -->
+      <div class="rdv-modal__footer">
+        <button class="modal-btn-cancel" (click)="closeRdvModal()" [disabled]="rdvModalLoading()">
+          Annuler
+        </button>
+        <button class="modal-btn-submit"
+          [disabled]="rdvModalLoading()"
+          (click)="rdvModalMode() === 'create' ? submitCreate() : submitEdit()">
+          @if (rdvModalLoading()) {
+            <i class="pi pi-spin pi-spinner"></i> En cours...
+          } @else if (rdvModalMode() === 'create') {
+            <i class="pi pi-check"></i> Créer le rendez-vous
+          } @else {
+            <i class="pi pi-check"></i> Sauvegarder
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══ TOAST ════════════════════════════════════════════════════ -->
+@if (toastMessage()) {
+  <div class="toast" [class]="'toast--' + toastType()">
+    <i class="pi {{ toastType() === 'success' ? 'pi-check-circle' : 'pi-exclamation-circle' }}"></i>
+    {{ toastMessage() }}
+  </div>
+}

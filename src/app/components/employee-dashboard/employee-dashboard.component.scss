@@ -326,10 +326,39 @@
   .pstat-icon { background: #f0fdf4; i { color: #16a34a; } }
   .pstat-value { color: #15803d; }
 }
+.pstat--annule {
+  border-color: #fecaca;
+  .pstat-icon { background: #fff1f2; i { color: #dc2626; } }
+  .pstat-value { color: #b91c1c; }
+}
+.pstat--termine {
+  border-color: #d1d5db;
+  .pstat-icon { background: #f9fafb; i { color: #374151; } }
+  .pstat-value { color: #1f2937; }
+}
 .pstat--mariage {
   border-color: #e9d5ff;
   .pstat-icon { background: #faf5ff; i { color: #7c3aed; } }
   .pstat-value { color: #6d28d9; }
+}
+.pstat--blue {
+  border-color: #bfdbfe;
+  .pstat-icon { background: #eff6ff; i { color: #2563eb; } }
+  .pstat-value { color: #1d4ed8; }
+}
+.pstat--purple {
+  border-color: #ddd6fe;
+  .pstat-icon { background: #f5f3ff; i { color: #7c3aed; } }
+  .pstat-value { color: #6d28d9; }
+}
+.pstat--clickable {
+  cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
+  &:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.10); }
+}
+.pstat--selected {
+  outline: 2.5px solid #c0566a; outline-offset: 2px;
+  box-shadow: 0 4px 16px rgba(192,86,106,0.18);
+  transform: translateY(-2px);
 }
 
 // ── Planning filters ──────────────────────────────────────────────
@@ -415,6 +444,26 @@
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   font-size: 0.875rem; transition: var(--transition); flex-shrink: 0;
   &:hover { background: var(--rose-50); color: var(--rose-600); border-color: var(--rose-300); transform: rotate(180deg); }
+}
+
+// ── Date Filter ───────────────────────────────────────────────
+.date-filter-box {
+  position: relative; display: flex; align-items: center;
+  min-width: 170px;
+  i { position: absolute; left: 0.85rem; color: var(--text-light); font-size: 0.8rem; pointer-events: none; }
+  input[type="date"] {
+    width: 100%; padding: 0.5rem 2.2rem 0.5rem 2.4rem;
+    border: 1.5px solid var(--rose-200); border-radius: var(--border-radius-full);
+    font-family: var(--font-body); font-size: 0.8rem; color: var(--text-dark);
+    background: var(--rose-50); outline: none; transition: var(--transition); cursor: pointer;
+    &:focus { border-color: var(--gold-400); background: white; }
+  }
+  button {
+    position: absolute; right: 0.6rem;
+    background: none; border: none; color: var(--text-light); cursor: pointer;
+    font-size: 0.75rem; padding: 0; line-height: 1; transition: var(--transition);
+    &:hover { color: var(--rose-500); }
+  }
 }
 
 // ── Planning table ────────────────────────────────────────────────
@@ -507,6 +556,7 @@
   border: 1px solid transparent; white-space: nowrap;
   &.pstatut--en-attente { background: #fffbeb; color: #92400e; border-color: #fde68a; }
   &.pstatut--confirme   { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+  &.pstatut--en-cours   { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
   &.pstatut--annule     { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
   &.pstatut--termine    { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
 }
@@ -522,6 +572,14 @@
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   font-size: 0.8rem; transition: var(--transition);
   &:hover { background: var(--gold-100); transform: scale(1.1); }
+}
+
+.action-btn-commencer {
+  width: 32px; height: 32px; border-radius: var(--border-radius-md);
+  border: 1.5px solid #93c5fd; background: #eff6ff; color: #1d4ed8;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; transition: var(--transition);
+  &:hover { background: #dbeafe; transform: scale(1.1); }
 }
 
 .action-btn-termine {

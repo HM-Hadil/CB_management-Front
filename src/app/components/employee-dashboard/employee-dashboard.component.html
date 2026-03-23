@@ -125,7 +125,7 @@
               <div class="form-group">
                 <label><i class="pi pi-phone"></i> Téléphone</label>
                 <input type="tel" [(ngModel)]="profileForm.telephone"
-                  class="luxury-input" placeholder="+216 xx xxx xxx" />
+                  class="luxury-input" placeholder="xx xxx xxx" maxlength="8" />
               </div>
 
               <div class="form-group">
@@ -230,34 +230,40 @@
       <!-- ══ PLANNING TAB ══════════════════════════════════════════ -->
       @if (activeTab() === 'planning') {
 
-        <!-- Stats -->
+        @if (error()) {
+          <div class="alert alert--error"><i class="pi pi-exclamation-triangle"></i> {{ error() }}</div>
+        }
+        @if (success()) {
+          <div class="alert alert--success"><i class="pi pi-check-circle"></i> {{ success() }}</div>
+        }
+
+        <!-- Stats (cliquables pour filtrer la période) -->
         <div class="planning-stats">
-          <div class="pstat-card pstat--gold">
-            <div class="pstat-icon"><i class="pi pi-calendar"></i></div>
-            <div class="pstat-info">
-              <span class="pstat-value">{{ totalRdv() }}</span>
-              <span class="pstat-label">Total RDV</span>
-            </div>
-          </div>
-          <div class="pstat-card pstat--rose">
+          <div class="pstat-card pstat--rose pstat--clickable"
+               [class.pstat--selected]="viewPeriod() === 'today'"
+               (click)="viewPeriod.set('today')" title="Voir les RDV d'aujourd'hui">
             <div class="pstat-icon"><i class="pi pi-sun"></i></div>
             <div class="pstat-info">
               <span class="pstat-value">{{ rdvAujourdhui() }}</span>
               <span class="pstat-label">Aujourd'hui</span>
             </div>
           </div>
-          <div class="pstat-card pstat--amber">
-            <div class="pstat-icon"><i class="pi pi-clock"></i></div>
+          <div class="pstat-card pstat--blue pstat--clickable"
+               [class.pstat--selected]="viewPeriod() === 'week'"
+               (click)="viewPeriod.set('week')" title="Voir les RDV de cette semaine">
+            <div class="pstat-icon"><i class="pi pi-calendar-plus"></i></div>
             <div class="pstat-info">
-              <span class="pstat-value">{{ rdvEnAttente() }}</span>
-              <span class="pstat-label">En attente</span>
+              <span class="pstat-value">{{ rdvCetteSemaine() }}</span>
+              <span class="pstat-label">Cette semaine</span>
             </div>
           </div>
-          <div class="pstat-card pstat--mariage">
-            <div class="pstat-icon"><i class="pi pi-heart"></i></div>
+          <div class="pstat-card pstat--purple pstat--clickable"
+               [class.pstat--selected]="viewPeriod() === 'month'"
+               (click)="viewPeriod.set('month')" title="Voir les RDV de ce mois">
+            <div class="pstat-icon"><i class="pi pi-chart-bar"></i></div>
             <div class="pstat-info">
-              <span class="pstat-value">{{ rdvMariage() }}</span>
-              <span class="pstat-label">Mariage</span>
+              <span class="pstat-value">{{ rdvCeMois() }}</span>
+              <span class="pstat-label">Ce mois</span>
             </div>
           </div>
           <div class="pstat-card pstat--confirme">
@@ -265,6 +271,29 @@
             <div class="pstat-info">
               <span class="pstat-value">{{ rdvConfirme() }}</span>
               <span class="pstat-label">Confirmés</span>
+            </div>
+          </div>
+          <div class="pstat-card pstat--annule">
+            <div class="pstat-icon"><i class="pi pi-times-circle"></i></div>
+            <div class="pstat-info">
+              <span class="pstat-value">{{ rdvAnnule() }}</span>
+              <span class="pstat-label">Annulés</span>
+            </div>
+          </div>
+          <div class="pstat-card pstat--termine">
+            <div class="pstat-icon"><i class="pi pi-flag"></i></div>
+            <div class="pstat-info">
+              <span class="pstat-value">{{ rdvTermine() }}</span>
+              <span class="pstat-label">Terminés</span>
+            </div>
+          </div>
+          <div class="pstat-card pstat--gold pstat--clickable"
+               [class.pstat--selected]="viewPeriod() === 'all'"
+               (click)="viewPeriod.set('all')" title="Voir tous les RDV">
+            <div class="pstat-icon"><i class="pi pi-calendar"></i></div>
+            <div class="pstat-info">
+              <span class="pstat-value">{{ totalRdv() }}</span>
+              <span class="pstat-label">Total RDV</span>
             </div>
           </div>
         </div>
@@ -282,17 +311,9 @@
                 (click)="setFilterStatut(StatutRendezVous.EN_ATTENTE)">
                 En attente
               </button>
-              <button class="pill pill--confirme" [class.active]="filterStatut() === StatutRendezVous.CONFIRME"
-                (click)="setFilterStatut(StatutRendezVous.CONFIRME)">
-                Confirmé
-              </button>
               <button class="pill pill--termine" [class.active]="filterStatut() === StatutRendezVous.TERMINE"
                 (click)="setFilterStatut(StatutRendezVous.TERMINE)">
                 Terminé
-              </button>
-              <button class="pill pill--annule" [class.active]="filterStatut() === StatutRendezVous.ANNULE"
-                (click)="setFilterStatut(StatutRendezVous.ANNULE)">
-                Annulé
               </button>
             </div>
           </div>
@@ -308,14 +329,33 @@
                 (click)="setFilterTypeClient(TypeClient.NORMAL)">
                 Normal
               </button>
-              <button class="pill pill--mariage" [class.active]="filterTypeClient() === TypeClient.MARIAGE"
-                (click)="setFilterTypeClient(TypeClient.MARIAGE)">
-                💍 Mariage
+              <button class="pill pill--mariage" [class.active]="filterTypeClient() === 'MARIAGE_SERVICES'"
+                (click)="setFilterTypeClient('MARIAGE_SERVICES')">
+                💍 Mariée + Services
               </button>
             </div>
           </div>
 
-          <!-- Search + refresh -->
+          <!-- Period toggle (synchronisé avec les cartes stats) -->
+          <div class="filter-group">
+            <span class="filter-label">Période :</span>
+            <div class="pill-group">
+              <button class="pill" [class.active]="viewPeriod() === 'today'" (click)="viewPeriod.set('today')">
+                <i class="pi pi-sun"></i> Aujourd'hui
+              </button>
+              <button class="pill" [class.active]="viewPeriod() === 'week'" (click)="viewPeriod.set('week')">
+                <i class="pi pi-calendar-plus"></i> Semaine
+              </button>
+              <button class="pill" [class.active]="viewPeriod() === 'month'" (click)="viewPeriod.set('month')">
+                <i class="pi pi-chart-bar"></i> Mois
+              </button>
+              <button class="pill" [class.active]="viewPeriod() === 'all'" (click)="viewPeriod.set('all')">
+                <i class="pi pi-list"></i> Tous
+              </button>
+            </div>
+          </div>
+
+          <!-- Search + date + refresh -->
           <div class="filter-right">
             <div class="planning-search">
               <i class="pi pi-search"></i>
@@ -324,6 +364,16 @@
                 (ngModelChange)="planningSearch.set($event)" />
               @if (planningSearch()) {
                 <button (click)="planningSearch.set('')"><i class="pi pi-times"></i></button>
+              }
+            </div>
+            <div class="date-filter-box">
+              <i class="pi pi-calendar"></i>
+              <input type="date"
+                [ngModel]="planningFilterDate()"
+                (ngModelChange)="planningFilterDate.set($event)"
+                title="Filtrer par date" />
+              @if (planningFilterDate()) {
+                <button (click)="planningFilterDate.set('')"><i class="pi pi-times"></i></button>
               }
             </div>
             <button class="btn-refresh-plan" (click)="loadRendezVous()" title="Actualiser">
@@ -343,8 +393,12 @@
             <div class="planning-empty">
               <div class="empty-icon">📅</div>
               <h3>Aucun rendez-vous trouvé</h3>
-              <p>{{ planningSearch() || filterStatut() !== 'ALL' || filterTypeClient() !== 'ALL'
-                     ? 'Aucun résultat pour ces filtres.' : 'Vous n\'avez pas encore de rendez-vous assignés.' }}</p>
+              <p>{{ planningSearch() || planningFilterDate() || filterStatut() !== 'ALL' || filterTypeClient() !== 'ALL'
+                     ? 'Aucun résultat pour ces filtres.'
+                     : viewPeriod() === 'today' ? 'Aucun rendez-vous aujourd\'hui.'
+                     : viewPeriod() === 'week'  ? 'Aucun rendez-vous cette semaine.'
+                     : viewPeriod() === 'month' ? 'Aucun rendez-vous ce mois.'
+                     : 'Vous n\'avez pas encore de rendez-vous assignés.' }}</p>
             </div>
           } @else {
             <div class="planning-table-wrapper">
@@ -404,7 +458,7 @@
                       <td>
                         <span class="pduree-badge">
                           <i class="pi pi-clock"></i>
-                          {{ rdv.nbHeures }}h
+                          {{ rdv.dureeMinutes }}min
                         </span>
                       </td>
 
@@ -417,11 +471,13 @@
                       <!-- Actions -->
                       <td>
                         <div class="action-btns">
-                          <button class="action-btn-view" (click)="openRdvDetail(rdv)" title="Voir le détail">
-                            <i class="pi pi-eye"></i>
-                          </button>
-                          @if (rdv.statut !== StatutRendezVous.TERMINE && rdv.statut !== StatutRendezVous.ANNULE) {
-                            <button class="action-btn-termine" (click)="terminerRdv(rdv)" title="Marquer comme terminé">
+                          @if (rdv.statut === StatutRendezVous.EN_ATTENTE || rdv.statut === StatutRendezVous.CONFIRME) {
+                            <button class="action-btn-commencer" (click)="commencerRdv(rdv)" title="Commencer le rendez-vous">
+                              <i class="pi pi-play"></i>
+                            </button>
+                          }
+                          @if (rdv.statut === StatutRendezVous.EN_COURS) {
+                            <button class="action-btn-termine" (click)="terminerRdv(rdv)" title="Terminer le rendez-vous">
                               <i class="pi pi-check-circle"></i>
                             </button>
                           }
@@ -439,124 +495,3 @@
   </main>
 </div>
 
-<!-- ══ DETAIL MODAL ══════════════════════════════════════════════ -->
-@if (showDetailModal() && selectedRdv()) {
-  <div class="modal-overlay" (click)="closeRdvDetail()">
-    <div class="rdv-detail-modal" (click)="$event.stopPropagation()">
-
-      <div class="rdv-detail-header">
-        <div class="rdv-detail-icon">
-          <i class="pi pi-calendar"></i>
-        </div>
-        <div>
-          <h2>Détail du Rendez-vous</h2>
-          <p>
-            <span [class]="selectedRdv()!.typeClient === TypeClient.MARIAGE ? 'ptype-badge ptype-mariage' : 'ptype-badge'">
-              {{ getTypeClientLabel(selectedRdv()!.typeClient) }}
-            </span>
-            &nbsp;—&nbsp;
-            <span [class]="'pstatut-badge pstatut--' + getStatutClass(selectedRdv()!.statut)">
-              {{ getStatutLabel(selectedRdv()!.statut) }}
-            </span>
-          </p>
-        </div>
-        <button class="rdv-detail-close" (click)="closeRdvDetail()">
-          <i class="pi pi-times"></i>
-        </button>
-      </div>
-
-      <div class="rdv-detail-body">
-
-        <!-- Client -->
-        <div class="rdv-detail-section">
-          <h4><i class="pi pi-user"></i> Informations client</h4>
-          <div class="rdv-info-grid">
-            <div class="rdv-info-item">
-              <span class="rdv-info-label">Prénom</span>
-              <span class="rdv-info-value">{{ selectedRdv()!.prenomClient }}</span>
-            </div>
-            <div class="rdv-info-item">
-              <span class="rdv-info-label">Nom</span>
-              <span class="rdv-info-value">{{ selectedRdv()!.nomClient }}</span>
-            </div>
-            @if (selectedRdv()!.telephoneClient) {
-              <div class="rdv-info-item">
-                <span class="rdv-info-label">Téléphone</span>
-                <span class="rdv-info-value">
-                  <i class="pi pi-phone" style="font-size:0.7rem; color:var(--gold-500)"></i>
-                  {{ selectedRdv()!.telephoneClient }}
-                </span>
-              </div>
-            }
-          </div>
-        </div>
-
-        <!-- Planning -->
-        <div class="rdv-detail-section">
-          <h4><i class="pi pi-clock"></i> Planning</h4>
-          <div class="rdv-info-grid">
-            <div class="rdv-info-item">
-              <span class="rdv-info-label">Début</span>
-              <span class="rdv-info-value">{{ formatDate(selectedRdv()!.dateDebut) }}</span>
-            </div>
-            <div class="rdv-info-item">
-              <span class="rdv-info-label">Fin</span>
-              <span class="rdv-info-value">{{ formatDate(selectedRdv()!.dateFin) }}</span>
-            </div>
-            <div class="rdv-info-item">
-              <span class="rdv-info-label">Durée</span>
-              <span class="rdv-info-value">{{ selectedRdv()!.nbHeures }}h</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Mes services -->
-        <div class="rdv-detail-section">
-          <h4><i class="pi pi-star"></i> Mes services assignés</h4>
-          @for (srv of getMyServices(selectedRdv()!); track srv.id) {
-            <div class="rdv-service-row">
-              <span class="rdv-service-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
-              <span class="rdv-service-emp">
-                <i class="pi pi-user"></i>
-                {{ srv.employeePrenom }} {{ srv.employeeNom }}
-              </span>
-            </div>
-          }
-          @if (getMyServices(selectedRdv()!).length === 0) {
-            <p style="color:var(--text-light); font-size:0.85rem;">Aucun service assigné trouvé.</p>
-          }
-        </div>
-
-        <!-- Tous les services -->
-        @if (selectedRdv()!.services.length > getMyServices(selectedRdv()!).length) {
-          <div class="rdv-detail-section">
-            <h4><i class="pi pi-list"></i> Tous les services du RDV</h4>
-            @for (srv of selectedRdv()!.services; track srv.id) {
-              <div class="rdv-service-row">
-                <span class="rdv-service-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
-                <span class="rdv-service-emp">
-                  <i class="pi pi-user"></i>
-                  {{ srv.employeePrenom }} {{ srv.employeeNom }}
-                  @if (srv.employeeSpecialite) {
-                    <span style="color:var(--gold-600); font-size:0.7rem;">({{ srv.employeeSpecialite }})</span>
-                  }
-                </span>
-              </div>
-            }
-          </div>
-        }
-
-      </div>
-
-      <!-- Footer action -->
-      @if (selectedRdv()!.statut !== StatutRendezVous.TERMINE && selectedRdv()!.statut !== StatutRendezVous.ANNULE) {
-        <div class="rdv-detail-footer">
-          <button class="btn-termine-modal" (click)="terminerRdv(selectedRdv()!); closeRdvDetail()">
-            <i class="pi pi-check-circle"></i> Terminer le rendez-vous
-          </button>
-        </div>
-      }
-
-    </div>
-  </div>
-}

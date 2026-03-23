@@ -638,6 +638,30 @@
   .stat-card__icon { background: #eff6ff; i { color: #2563eb; } }
   .stat-card__value { color: #1d4ed8; }
 }
+.stat-card--teal {
+  border-color: #99f6e4;
+  .stat-card__icon { background: #f0fdfa; i { color: #0d9488; } }
+  .stat-card__value { color: #0f766e; }
+}
+.stat-card--annule {
+  border-color: #fecaca;
+  .stat-card__icon { background: #fff1f2; i { color: #dc2626; } }
+  .stat-card__value { color: #b91c1c; }
+}
+.stat-card--termine {
+  border-color: #d1d5db;
+  .stat-card__icon { background: #f9fafb; i { color: #374151; } }
+  .stat-card__value { color: #1f2937; }
+}
+.stat-card--clickable {
+  cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
+  &:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.10); }
+}
+.stat-card--selected {
+  outline: 2.5px solid var(--rose-600); outline-offset: 2px;
+  box-shadow: 0 4px 16px rgba(192,86,106,0.18);
+  transform: translateY(-2px);
+}
 
 // ── RDV Filter card ───────────────────────────────────────────────
 .rdv-filter-card {
@@ -676,6 +700,10 @@
 .rdv-pill--mariage {
   &.active { background: linear-gradient(135deg, #c4b5fd, #7c3aed); }
   &:hover:not(.active) { border-color: #a78bfa; color: #6d28d9; background: #faf5ff; }
+}
+.rdv-pill--mariage-services {
+  &.active { background: linear-gradient(135deg, #f9a8d4, #db2777); }
+  &:hover:not(.active) { border-color: #ec4899; color: #be185d; background: #fdf2f8; }
 }
 .rdv-pill--attente {
   &.active { background: linear-gradient(135deg, #fde68a, #d97706); }
@@ -719,6 +747,26 @@
   }
   button { background: none; border: none; color: var(--text-light); cursor: pointer;
     padding: 0; font-size: 0.75rem; &:hover { color: var(--rose-500); } }
+}
+
+// ── Date Filter ───────────────────────────────────────────────
+.date-filter-box {
+  position: relative; display: flex; align-items: center;
+  min-width: 170px;
+  i { position: absolute; left: 0.85rem; color: var(--text-light); font-size: 0.8rem; pointer-events: none; }
+  input[type="date"] {
+    width: 100%; padding: 0.5rem 2.2rem 0.5rem 2.4rem;
+    border: 1.5px solid var(--rose-200); border-radius: var(--border-radius-full);
+    font-family: var(--font-body); font-size: 0.825rem; color: var(--text-dark);
+    background: white; outline: none; transition: var(--transition); cursor: pointer;
+    &:focus { border-color: var(--gold-400); box-shadow: 0 0 0 3px rgba(212,160,23,0.1); }
+  }
+  button {
+    position: absolute; right: 0.6rem;
+    background: none; border: none; color: var(--text-light); cursor: pointer;
+    font-size: 0.75rem; padding: 0; line-height: 1;
+    &:hover { color: var(--rose-500); }
+  }
 }
 
 .rdv-active-filters {
@@ -766,6 +814,7 @@
   border: 1px solid transparent; white-space: nowrap;
   &.rdv-statut--en-attente { background: #fffbeb; color: #92400e; border-color: #fde68a; }
   &.rdv-statut--confirme   { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+  &.rdv-statut--en-cours   { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
   &.rdv-statut--annule     { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
   &.rdv-statut--termine    { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
 }

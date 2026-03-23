@@ -41,9 +41,11 @@ export class AdminDashboardComponent implements OnInit {
   allRdv = signal<RendezVousResponse[]>([]);
   rdvLoading = signal(false);
   rdvFilterStatut = signal<StatutRendezVous | 'ALL'>('ALL');
-  rdvFilterTypeClient = signal<TypeClient | 'ALL'>('ALL');
+  rdvFilterTypeClient = signal<TypeClient | 'ALL' | 'MARIAGE_SERVICES'>('ALL');
   rdvFilterEmployeeStr = signal<string>('ALL');
   rdvSearch = signal('');
+  rdvFilterDate = signal<string>('');
+  rdvViewPeriod = signal<'today' | 'week' | 'month' | 'all'>('today');
   selectedRdv = signal<RendezVousResponse | null>(null);
   showRdvDetail = signal(false);
 
@@ -104,13 +106,35 @@ export class AdminDashboardComponent implements OnInit {
   // ── Computed (RDV) ────────────────────────────────────────────
   filteredRdv = computed(() => {
     let list = this.allRdv();
+    const period = this.rdvViewPeriod();
     const st  = this.rdvFilterStatut();
     const tc  = this.rdvFilterTypeClient();
     const emp = this.rdvFilterEmployeeStr();
     const q   = this.rdvSearch().toLowerCase().trim();
+    const d   = this.rdvFilterDate();
 
+    if (!d) {
+      const now = new Date();
+      if (period === 'today') {
+        const today = now.toDateString();
+        list = list.filter(r => new Date(r.dateDebut).toDateString() === today);
+      } else if (period === 'week') {
+        const day = now.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        const mon = new Date(now); mon.setDate(now.getDate() + diff); mon.setHours(0, 0, 0, 0);
+        const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23, 59, 59, 999);
+        list = list.filter(r => { const rd = new Date(r.dateDebut); return rd >= mon && rd <= sun; });
+      } else if (period === 'month') {
+        list = list.filter(r => {
+          const rd = new Date(r.dateDebut);
+          return rd.getMonth() === now.getMonth() && rd.getFullYear() === now.getFullYear();
+        });
+      }
+    }
     if (st !== 'ALL') list = list.filter(r => r.statut === st);
-    if (tc !== 'ALL') list = list.filter(r => r.typeClient === tc);
+    if (tc === TypeClient.NORMAL) list = list.filter(r => r.typeClient === TypeClient.NORMAL);
+    else if (tc === TypeClient.MARIAGE) list = list.filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId));
+    else if (tc === 'MARIAGE_SERVICES') list = list.filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId));
     if (emp !== 'ALL') {
       const empId = parseInt(emp, 10);
       list = list.filter(r => r.services.some(s => s.employeeId === empId));
@@ -120,7 +144,8 @@ export class AdminDashboardComponent implements OnInit {
       r.prenomClient.toLowerCase().includes(q) ||
       (r.telephoneClient?.toLowerCase().includes(q) ?? false)
     );
-    return list;
+    if (d) list = list.filter(r => r.dateDebut.startsWith(d));
+    return [...list].sort((a, b) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
   });
 
   rdvTotalCount      = computed(() => this.allRdv().length);
@@ -128,10 +153,55 @@ export class AdminDashboardComponent implements OnInit {
     const today = new Date().toDateString();
     return this.allRdv().filter(r => new Date(r.dateDebut).toDateString() === today).length;
   });
-  rdvMariageCount    = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.MARIAGE).length);
-  rdvNormalCount     = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.NORMAL).length);
-  rdvEnAttenteCount  = computed(() => this.allRdv().filter(r => r.statut === StatutRendezVous.EN_ATTENTE).length);
-  rdvConfirmeCount   = computed(() => this.allRdv().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
+  rdvCetteSemaineCount = computed(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now); monday.setDate(now.getDate() + diffToMonday); monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
+    return this.allRdv().filter(r => { const d = new Date(r.dateDebut); return d >= monday && d <= sunday; }).length;
+  });
+  rdvCeMoisCount = computed(() => {
+    const now = new Date();
+    return this.allRdv().filter(r => {
+      const d = new Date(r.dateDebut);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+  });
+  rdvMariageCount = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvNormalCount  = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.NORMAL).length);
+
+  // Status counts filtered by current period/date selection
+  private rdvPeriodFiltered = computed(() => {
+    let list = this.allRdv();
+    const period = this.rdvViewPeriod();
+    const d = this.rdvFilterDate();
+    if (!d) {
+      const now = new Date();
+      if (period === 'today') {
+        const today = now.toDateString();
+        list = list.filter(r => new Date(r.dateDebut).toDateString() === today);
+      } else if (period === 'week') {
+        const day = now.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        const mon = new Date(now); mon.setDate(now.getDate() + diff); mon.setHours(0, 0, 0, 0);
+        const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23, 59, 59, 999);
+        list = list.filter(r => { const rd = new Date(r.dateDebut); return rd >= mon && rd <= sun; });
+      } else if (period === 'month') {
+        list = list.filter(r => {
+          const rd = new Date(r.dateDebut);
+          return rd.getMonth() === now.getMonth() && rd.getFullYear() === now.getFullYear();
+        });
+      }
+    } else {
+      list = list.filter(r => r.dateDebut.startsWith(d));
+    }
+    return list;
+  });
+
+  rdvConfirmeCount  = computed(() => this.rdvPeriodFiltered().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
+  rdvAnnuleCount    = computed(() => this.rdvPeriodFiltered().filter(r => r.statut === StatutRendezVous.ANNULE).length);
+  rdvTermineCount   = computed(() => this.rdvPeriodFiltered().filter(r => r.statut === StatutRendezVous.TERMINE).length);
 
   employeesList = computed(() => this.users().filter(u => u.role === Role.EMPLOYEE && u.activated));
 
@@ -177,7 +247,7 @@ export class AdminDashboardComponent implements OnInit {
 
   // ── RDV filters ──────────────────────────────────────────────
   setRdvFilterStatut(s: StatutRendezVous | 'ALL')    { this.rdvFilterStatut.set(s); }
-  setRdvFilterTypeClient(tc: TypeClient | 'ALL')     { this.rdvFilterTypeClient.set(tc); }
+  setRdvFilterTypeClient(tc: TypeClient | 'ALL' | 'MARIAGE_SERVICES') { this.rdvFilterTypeClient.set(tc); }
 
   openRdvDetail(rdv: RendezVousResponse) {
     this.selectedRdv.set(rdv);
@@ -343,7 +413,7 @@ export class AdminDashboardComponent implements OnInit {
   getStatutLabel(s: StatutRendezVous): string {
     const m: Record<StatutRendezVous, string> = {
       EN_ATTENTE: 'En attente', CONFIRME: 'Confirmé',
-      ANNULE: 'Annulé', TERMINE: 'Terminé'
+      EN_COURS: 'En cours', ANNULE: 'Annulé', TERMINE: 'Terminé'
     };
     return m[s];
   }
@@ -351,7 +421,7 @@ export class AdminDashboardComponent implements OnInit {
   getStatutClass(s: StatutRendezVous): string {
     const m: Record<StatutRendezVous, string> = {
       EN_ATTENTE: 'en-attente', CONFIRME: 'confirme',
-      ANNULE: 'annule', TERMINE: 'termine'
+      EN_COURS: 'en-cours', ANNULE: 'annule', TERMINE: 'termine'
     };
     return m[s];
   }

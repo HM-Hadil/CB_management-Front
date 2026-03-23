@@ -7,7 +7,7 @@ import { Role } from '../models/auth.models';
 @Injectable({ providedIn: 'root' })
 export class UserService {
 
-  private readonly ADMIN_URL = 'http://localhost:8080/api/admin';
+  private readonly ADMIN_URL = 'http://localhost:9090/api/admin';
 
   constructor(private http: HttpClient) {}
 

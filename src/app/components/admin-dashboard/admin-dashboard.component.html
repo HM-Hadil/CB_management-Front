@@ -276,34 +276,33 @@
     <!-- ══ RDV SECTION ══════════════════════════════════════════ -->
     @if (activeTab() === 'rdv') {
 
-      <!-- RDV Stats -->
+      <!-- RDV Stats (cliquables pour filtrer la période) -->
       <div class="rdv-stats-row">
-        <div class="stat-card stat-card--gold">
-          <div class="stat-card__icon"><i class="pi pi-calendar"></i></div>
+        <div class="stat-card stat-card--purple stat-card--clickable"
+             [class.stat-card--selected]="rdvViewPeriod() === 'today'"
+             (click)="rdvViewPeriod.set('today')" title="Voir les RDV d'aujourd'hui">
+          <div class="stat-card__icon"><i class="pi pi-sun"></i></div>
           <div class="stat-card__info">
-            <span class="stat-card__value">{{ rdvTotalCount() }}</span>
-            <span class="stat-card__label">Total RDV</span>
+            <span class="stat-card__value">{{ rdvAujourdhuiCount() }}</span>
+            <span class="stat-card__label">Aujourd'hui</span>
           </div>
         </div>
-        <div class="stat-card stat-card--rose">
-          <div class="stat-card__icon"><i class="pi pi-heart"></i></div>
+        <div class="stat-card stat-card--blue stat-card--clickable"
+             [class.stat-card--selected]="rdvViewPeriod() === 'week'"
+             (click)="rdvViewPeriod.set('week')" title="Voir les RDV de cette semaine">
+          <div class="stat-card__icon"><i class="pi pi-calendar-plus"></i></div>
           <div class="stat-card__info">
-            <span class="stat-card__value">{{ rdvMariageCount() }}</span>
-            <span class="stat-card__label">Mariage</span>
+            <span class="stat-card__value">{{ rdvCetteSemaineCount() }}</span>
+            <span class="stat-card__label">Cette semaine</span>
           </div>
         </div>
-        <div class="stat-card stat-card--blue">
-          <div class="stat-card__icon"><i class="pi pi-user"></i></div>
+        <div class="stat-card stat-card--teal stat-card--clickable"
+             [class.stat-card--selected]="rdvViewPeriod() === 'month'"
+             (click)="rdvViewPeriod.set('month')" title="Voir les RDV de ce mois">
+          <div class="stat-card__icon"><i class="pi pi-chart-bar"></i></div>
           <div class="stat-card__info">
-            <span class="stat-card__value">{{ rdvNormalCount() }}</span>
-            <span class="stat-card__label">Normal</span>
-          </div>
-        </div>
-        <div class="stat-card stat-card--amber">
-          <div class="stat-card__icon"><i class="pi pi-clock"></i></div>
-          <div class="stat-card__info">
-            <span class="stat-card__value">{{ rdvEnAttenteCount() }}</span>
-            <span class="stat-card__label">En attente</span>
+            <span class="stat-card__value">{{ rdvCeMoisCount() }}</span>
+            <span class="stat-card__label">Ce mois</span>
           </div>
         </div>
         <div class="stat-card stat-card--green">
@@ -313,11 +312,27 @@
             <span class="stat-card__label">Confirmés</span>
           </div>
         </div>
-        <div class="stat-card stat-card--purple">
-          <div class="stat-card__icon"><i class="pi pi-sun"></i></div>
+        <div class="stat-card stat-card--annule">
+          <div class="stat-card__icon"><i class="pi pi-times-circle"></i></div>
           <div class="stat-card__info">
-            <span class="stat-card__value">{{ rdvAujourdhuiCount() }}</span>
-            <span class="stat-card__label">Aujourd'hui</span>
+            <span class="stat-card__value">{{ rdvAnnuleCount() }}</span>
+            <span class="stat-card__label">Annulés</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--termine">
+          <div class="stat-card__icon"><i class="pi pi-flag"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvTermineCount() }}</span>
+            <span class="stat-card__label">Terminés</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--gold stat-card--clickable"
+             [class.stat-card--selected]="rdvViewPeriod() === 'all'"
+             (click)="rdvViewPeriod.set('all')" title="Voir tous les RDV">
+          <div class="stat-card__icon"><i class="pi pi-calendar"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvTotalCount() }}</span>
+            <span class="stat-card__label">Total RDV</span>
           </div>
         </div>
       </div>
@@ -335,7 +350,9 @@
               <button class="rdv-pill rdv-pill--normal" [class.active]="rdvFilterTypeClient() === TypeClient.NORMAL"
                 (click)="setRdvFilterTypeClient(TypeClient.NORMAL)">Normal</button>
               <button class="rdv-pill rdv-pill--mariage" [class.active]="rdvFilterTypeClient() === TypeClient.MARIAGE"
-                (click)="setRdvFilterTypeClient(TypeClient.MARIAGE)">💍 Mariage</button>
+                (click)="setRdvFilterTypeClient(TypeClient.MARIAGE)">💍 Mariée</button>
+              <button class="rdv-pill rdv-pill--mariage-services" [class.active]="rdvFilterTypeClient() === 'MARIAGE_SERVICES'"
+                (click)="setRdvFilterTypeClient('MARIAGE_SERVICES')">💍 Mariée + Services</button>
             </div>
           </div>
 
@@ -360,7 +377,7 @@
           </div>
         </div>
 
-        <!-- Row 2 : Employee dropdown + Search -->
+        <!-- Row 2 : Employee dropdown + Date + Search -->
         <div class="rdv-filter-row">
           <div class="rdv-filter-group">
             <span class="rdv-filter-label">Employée :</span>
@@ -376,6 +393,17 @@
             </select>
           </div>
 
+          <div class="date-filter-box">
+            <i class="pi pi-calendar"></i>
+            <input type="date"
+              [ngModel]="rdvFilterDate()"
+              (ngModelChange)="rdvFilterDate.set($event)"
+              title="Filtrer par date" />
+            @if (rdvFilterDate()) {
+              <button (click)="rdvFilterDate.set('')"><i class="pi pi-times"></i></button>
+            }
+          </div>
+
           <div class="rdv-search-box">
             <i class="pi pi-search"></i>
             <input type="text" placeholder="Rechercher un client (nom, téléphone)..."
@@ -387,13 +415,13 @@
         </div>
 
         <!-- Active filters summary -->
-        @if (rdvFilterTypeClient() !== 'ALL' || rdvFilterStatut() !== 'ALL' || rdvFilterEmployeeStr() !== 'ALL' || rdvSearch()) {
+        @if (rdvFilterTypeClient() !== 'ALL' || rdvFilterStatut() !== 'ALL' || rdvFilterEmployeeStr() !== 'ALL' || rdvSearch() || rdvFilterDate()) {
           <div class="rdv-active-filters">
             <span class="rdv-results-count">
               <i class="pi pi-filter"></i>
               {{ filteredRdv().length }} résultat(s)
             </span>
-            <button class="rdv-clear-filters" (click)="rdvFilterTypeClient.set('ALL'); rdvFilterStatut.set('ALL'); rdvFilterEmployeeStr.set('ALL'); rdvSearch.set('')">
+            <button class="rdv-clear-filters" (click)="rdvFilterTypeClient.set('ALL'); rdvFilterStatut.set('ALL'); rdvFilterEmployeeStr.set('ALL'); rdvSearch.set(''); rdvFilterDate.set('')">
               <i class="pi pi-times"></i> Effacer les filtres
             </button>
           </div>
@@ -412,7 +440,7 @@
             <div class="empty-icon">📅</div>
             <h3>Aucun rendez-vous trouvé</h3>
             <p>
-              {{ (rdvFilterTypeClient() !== 'ALL' || rdvFilterStatut() !== 'ALL' || rdvFilterEmployeeStr() !== 'ALL' || rdvSearch())
+              {{ (rdvFilterTypeClient() !== 'ALL' || rdvFilterStatut() !== 'ALL' || rdvFilterEmployeeStr() !== 'ALL' || rdvSearch() || rdvFilterDate())
                 ? 'Aucun résultat pour ces filtres.'
                 : 'Aucun rendez-vous enregistré pour le moment.' }}
             </p>
@@ -486,7 +514,7 @@
                     <!-- Durée -->
                     <td>
                       <span class="rdv-duree-badge">
-                        <i class="pi pi-clock"></i>{{ rdv.nbHeures }}h
+                        <i class="pi pi-clock"></i>{{ rdv.dureeMinutes }}min
                       </span>
                     </td>
 
@@ -563,7 +591,7 @@
           </div>
           <div class="modal-form-group">
             <label>Téléphone</label>
-            <input type="tel" [(ngModel)]="form.telephone" class="modal-input" placeholder="+216 xx xxx xxx" />
+            <input type="tel" [(ngModel)]="form.telephone" class="modal-input" placeholder="xx xxx xxx" maxlength="8" />
           </div>
           <div class="modal-form-grid">
             <div class="modal-form-group">
@@ -611,10 +639,10 @@
           </div>
           <div class="modal-form-group">
             <label>Téléphone</label>
-            <input type="tel" [(ngModel)]="editForm.telephone" class="modal-input" />
+            <input type="tel" [(ngModel)]="editForm.telephone" class="modal-input" placeholder="xx xxx xxx" maxlength="8" />
           </div>
 
-          @if (isEmployeeEdit()) {
+          @if (selectedUser()?.role === Role.EMPLOYEE) {
             <div class="modal-form-grid employee-fields">
               <div class="modal-form-group">
                 <label>Spécialité</label>
@@ -735,7 +763,7 @@
             </div>
             <div class="rdv-info-item">
               <span class="rdv-info-label">Durée</span>
-              <span class="rdv-info-value">{{ selectedRdv()!.nbHeures }} heure(s)</span>
+              <span class="rdv-info-value">{{ selectedRdv()!.dureeMinutes }} minute(s)</span>
             </div>
           </div>
         </div>

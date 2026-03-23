@@ -1,7 +1,12 @@
 <div class="dashboard-layout">
 
+  <!-- Overlay mobile pour fermer la sidebar -->
+  @if (sidebarOpen()) {
+    <div class="sidebar-overlay" (click)="sidebarOpen.set(false)"></div>
+  }
+
   <!-- ══ SIDEBAR ══════════════════════════════════════════════════ -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.sidebar--open]="sidebarOpen()">
     <div class="sidebar__logo">
       <div class="logo-icon"><span>الغنجة</span></div>
       <div class="logo-info">
@@ -26,6 +31,22 @@
           <span class="nav-badge">{{ rdvEnAttente() }}</span>
         }
       </button>
+      <button class="nav-item" [class.active]="activeTab() === 'offres'" (click)="setTab('offres')">
+        <i class="pi pi-gift"></i>
+        <span>Clientes & Offres</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab() === 'stock'" (click)="setTab('stock')">
+        <i class="pi pi-box"></i>
+        <span>Stock</span>
+        @if (stockEnAlerte().length > 0) {
+          <span class="nav-badge nav-badge--warn">{{ stockEnAlerte().length }}</span>
+        }
+      </button>
+      <button class="nav-item" [class.active]="activeTab() === 'presence'" (click)="setTab('presence')">
+        <i class="pi pi-users"></i>
+        <span>Présence</span>
+      </button>
+
     </nav>
 
     <div class="sidebar__user">
@@ -45,15 +66,26 @@
 
     <!-- TOPBAR -->
     <header class="topbar">
+      <button class="hamburger-btn" (click)="toggleSidebar()" [class.active]="sidebarOpen()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
       <div>
         <h1 class="page-title">
           @if (activeTab() === 'profile') { Mon Profil }
           @else if (activeTab() === 'password') { Changer le mot de passe }
+          @else if (activeTab() === 'rendez-vous-mariees') { Rendez-vous Mariées }
+          @else if (activeTab() === 'offres') { Clientes & Offres }
+          @else if (activeTab() === 'stock') { Gestion du Stock }
+          @else if (activeTab() === 'presence') { Gestion de présence }
           @else { Gestion des Rendez-vous }
         </h1>
         <p class="page-sub">
           @if (activeTab() === 'profile') { Mettez à jour vos informations personnelles }
           @else if (activeTab() === 'password') { Modifiez votre mot de passe de connexion }
+          @else if (activeTab() === 'rendez-vous-mariees') { Gérer les rendez-vous pour les mariées }
+          @else if (activeTab() === 'offres') { Système de fidélité : 1 service gratuit tous les 5 services }
+          @else if (activeTab() === 'stock') { Gérer les produits, surveiller les niveaux de stock }
+          @else if (activeTab() === 'presence') { Suivez les horaires de votre équipe }
           @else { Créer, modifier et suivre les rendez-vous }
         </p>
       </div>
@@ -113,7 +145,7 @@
             </div>
             <div class="form-group">
               <label><i class="pi pi-phone"></i> Téléphone</label>
-              <input type="tel" [(ngModel)]="profileForm.telephone" class="luxury-input" placeholder="+216 xx xxx xxx" />
+              <input type="tel" [(ngModel)]="profileForm.telephone" class="luxury-input" placeholder="xx xxx xxx" maxlength="8" />
             </div>
 
             @if (error() && activeTab() === 'profile') {
@@ -195,20 +227,33 @@
       <!-- ══ RENDEZ-VOUS TAB ══════════════════════════════════════ -->
       @if (activeTab() === 'rendez-vous') {
 
-        <!-- Stats -->
+        <!-- Stats (cliquables pour filtrer la période) -->
         <div class="stats-row">
-          <div class="stat-card stat-card--gold">
-            <div class="stat-icon"><i class="pi pi-calendar"></i></div>
+          <div class="stat-card stat-card--rose stat-card--clickable"
+               [class.stat-card--selected]="rdvViewPeriod() === 'today'"
+               (click)="rdvViewPeriod.set('today')" title="Voir les RDV d'aujourd'hui">
+            <div class="stat-icon"><i class="pi pi-sun"></i></div>
             <div class="stat-info">
-              <span class="stat-value">{{ totalRdv() }}</span>
-              <span class="stat-label">Total RDV</span>
+              <span class="stat-value">{{ rdvAujourdhui() }}</span>
+              <span class="stat-label">Aujourd'hui</span>
             </div>
           </div>
-          <div class="stat-card stat-card--amber">
-            <div class="stat-icon"><i class="pi pi-clock"></i></div>
+          <div class="stat-card stat-card--blue stat-card--clickable"
+               [class.stat-card--selected]="rdvViewPeriod() === 'week'"
+               (click)="rdvViewPeriod.set('week')" title="Voir les RDV de cette semaine">
+            <div class="stat-icon"><i class="pi pi-calendar-plus"></i></div>
             <div class="stat-info">
-              <span class="stat-value">{{ rdvEnAttente() }}</span>
-              <span class="stat-label">En attente</span>
+              <span class="stat-value">{{ rdvCetteSemaine() }}</span>
+              <span class="stat-label">Cette semaine</span>
+            </div>
+          </div>
+          <div class="stat-card stat-card--purple stat-card--clickable"
+               [class.stat-card--selected]="rdvViewPeriod() === 'month'"
+               (click)="rdvViewPeriod.set('month')" title="Voir les RDV de ce mois">
+            <div class="stat-icon"><i class="pi pi-chart-bar"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ rdvCeMois() }}</span>
+              <span class="stat-label">Ce mois</span>
             </div>
           </div>
           <div class="stat-card stat-card--green">
@@ -218,11 +263,27 @@
               <span class="stat-label">Confirmés</span>
             </div>
           </div>
-          <div class="stat-card stat-card--rose">
-            <div class="stat-icon"><i class="pi pi-sun"></i></div>
+          <div class="stat-card stat-card--annule">
+            <div class="stat-icon"><i class="pi pi-times-circle"></i></div>
             <div class="stat-info">
-              <span class="stat-value">{{ rdvAujourdhui() }}</span>
-              <span class="stat-label">Aujourd'hui</span>
+              <span class="stat-value">{{ rdvAnnule() }}</span>
+              <span class="stat-label">Annulés</span>
+            </div>
+          </div>
+          <div class="stat-card stat-card--termine">
+            <div class="stat-icon"><i class="pi pi-flag"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ rdvTermine() }}</span>
+              <span class="stat-label">Terminés</span>
+            </div>
+          </div>
+          <div class="stat-card stat-card--gold stat-card--clickable"
+               [class.stat-card--selected]="rdvViewPeriod() === 'all'"
+               (click)="rdvViewPeriod.set('all')" title="Voir tous les RDV">
+            <div class="stat-icon"><i class="pi pi-calendar"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ totalRdv() }}</span>
+              <span class="stat-label">Total RDV</span>
             </div>
           </div>
         </div>
@@ -238,19 +299,53 @@
               (ngModelChange)="rdvSearchQuery.set($event)"
             />
             @if (rdvSearchQuery()) {
-              <button class="clear-search" (click)="rdvSearchQuery.set('')">
+              <button type="button" class="clear-search" (click)="rdvSearchQuery.set('')">
+                <i class="pi pi-times"></i>
+              </button>
+            }
+          </div>
+          <div class="date-filter-box">
+            <i class="pi pi-calendar"></i>
+            <input
+              type="date"
+              [ngModel]="rdvFilterDate()"
+              (ngModelChange)="rdvFilterDate.set($event)"
+              title="Filtrer par date"
+            />
+            @if (rdvFilterDate()) {
+              <button type="button" class="clear-search" (click)="rdvFilterDate.set('')">
                 <i class="pi pi-times"></i>
               </button>
             }
           </div>
           <div class="rdv-controls__right">
-            <button class="btn-refresh" (click)="loadRendezVous()" title="Actualiser">
+            @if (rdvSearchQuery() || rdvFilterDate()) {
+              <button type="button" class="btn-clear-filters" (click)="rdvSearchQuery.set(''); rdvFilterDate.set('')" title="Effacer les filtres">
+                <i class="pi pi-filter-slash"></i> Effacer
+              </button>
+            }
+            <button type="button" class="btn-refresh" (click)="loadRendezVous()" title="Actualiser">
               <i class="pi pi-refresh"></i>
             </button>
-            <button class="btn-create-rdv" (click)="openCreateModal()">
+            <button type="button" class="btn-create-rdv" (click)="openCreateModal()">
               <i class="pi pi-plus"></i>
               Nouveau rendez-vous
             </button>
+          </div>
+        </div>
+
+        <!-- Type client filter pills -->
+        <div class="rdv-type-filter">
+          <span class="rdv-filter-label">Client :</span>
+          <div class="rdv-pill-group">
+            <button class="rdv-pill" [class.active]="rdvTypeFilter() === 'ALL'"
+              (click)="rdvTypeFilter.set('ALL')">Tous</button>
+            <button class="rdv-pill rdv-pill--normal" [class.active]="rdvTypeFilter() === TypeClient.NORMAL"
+              (click)="rdvTypeFilter.set(TypeClient.NORMAL)">Normal</button>
+            <button class="rdv-pill rdv-pill--mariage" [class.active]="rdvTypeFilter() === TypeClient.MARIAGE"
+              (click)="rdvTypeFilter.set(TypeClient.MARIAGE)">💍 Mariée</button>
+            <button class="rdv-pill rdv-pill--mariage-services" [class.active]="rdvTypeFilter() === 'MARIAGE_SERVICES'"
+              (click)="rdvTypeFilter.set('MARIAGE_SERVICES')">💍 Mariée + Services</button>
           </div>
         </div>
 
@@ -265,8 +360,8 @@
             <div class="table-empty">
               <div class="empty-icon">📅</div>
               <h3>Aucun rendez-vous trouvé</h3>
-              <p>{{ rdvSearchQuery() ? 'Aucun résultat pour votre recherche.' : 'Créez le premier rendez-vous.' }}</p>
-              @if (!rdvSearchQuery()) {
+              <p>{{ (rdvSearchQuery() || rdvFilterDate() || rdvTypeFilter() !== 'ALL') ? 'Aucun résultat pour ces filtres.' : 'Créez le premier rendez-vous.' }}</p>
+              @if (!rdvSearchQuery() && !rdvFilterDate() && rdvTypeFilter() === 'ALL') {
                 <button class="btn-create-rdv" (click)="openCreateModal()">
                   <i class="pi pi-plus"></i> Nouveau rendez-vous
                 </button>
@@ -290,7 +385,7 @@
                     <tr [class.row-annule]="rdv.statut === StatutRendezVous.ANNULE"
                         [class.row-termine]="rdv.statut === StatutRendezVous.TERMINE">
                       <!-- Client -->
-                      <td>
+                      <td data-label="Client">
                         <div class="client-cell">
                           <div class="client-avatar">{{ getClientInitials(rdv) }}</div>
                           <div class="client-info">
@@ -307,7 +402,7 @@
                       </td>
 
                       <!-- Services -->
-                      <td>
+                      <td data-label="Services">
                         <div class="services-list">
                           @for (srv of rdv.services; track srv.id) {
                             <div class="service-item">
@@ -321,7 +416,7 @@
                       </td>
 
                       <!-- Date -->
-                      <td>
+                      <td data-label="Date">
                         <span class="date-cell">
                           <i class="pi pi-calendar"></i>
                           {{ formatDate(rdv.dateDebut) }}
@@ -329,22 +424,22 @@
                       </td>
 
                       <!-- Durée -->
-                      <td>
+                      <td data-label="Durée">
                         <span class="duree-badge">
                           <i class="pi pi-clock"></i>
-                          {{ rdv.nbHeures }}h
+                          {{ formatDuree(rdv.dureeMinutes) }}
                         </span>
                       </td>
 
                       <!-- Statut -->
-                      <td>
+                      <td data-label="Statut">
                         <span [class]="'statut-badge statut-badge--' + getStatutClass(rdv.statut)">
                           {{ getStatutLabel(rdv.statut) }}
                         </span>
                       </td>
 
                       <!-- Actions -->
-                      <td>
+                      <td data-label="Actions">
                         <div class="action-btns">
                           @if (canEdit(rdv)) {
                             <button class="action-btn action-btn--edit" (click)="openEditModal(rdv)" title="Modifier">
@@ -358,12 +453,14 @@
                               <i class="pi pi-check"></i>
                             </button>
                           }
-                          @if (rdv.statut !== StatutRendezVous.ANNULE && rdv.statut !== StatutRendezVous.TERMINE) {
+                          @if (rdv.statut === StatutRendezVous.CONFIRME || rdv.statut === StatutRendezVous.EN_COURS) {
                             <button class="action-btn action-btn--finish"
                               (click)="changerStatut(rdv.id, StatutRendezVous.TERMINE)"
                               title="Terminer">
                               <i class="pi pi-flag"></i>
                             </button>
+                          }
+                          @if (rdv.statut !== StatutRendezVous.ANNULE && rdv.statut !== StatutRendezVous.TERMINE) {
                             <button class="action-btn action-btn--cancel"
                               (click)="changerStatut(rdv.id, StatutRendezVous.ANNULE)"
                               title="Annuler">
@@ -406,6 +503,665 @@
           }
         </div>
       }
+
+      <!-- ══ RENDEZ-VOUS MARIÉES TAB ══════════════════════════════ -->
+      @if (activeTab() === 'rendez-vous-mariees') {
+
+        <div class="rdv-controls">
+          <div class="search-box">
+            <i class="pi pi-search"></i>
+            <input
+              type="text"
+              placeholder="Rechercher par nom ou téléphone..."
+              [ngModel]="rdvSearchQuery()"
+              (ngModelChange)="rdvSearchQuery.set($event)"
+            />
+            @if (rdvSearchQuery()) {
+              <button type="button" class="clear-search" (click)="rdvSearchQuery.set('')">
+                <i class="pi pi-times"></i>
+              </button>
+            }
+          </div>
+          <div class="rdv-controls__right">
+            <button type="button" class="btn-refresh" (click)="loadRendezVous()" title="Actualiser">
+              <i class="pi pi-refresh"></i>
+            </button>
+            <button type="button" class="btn-create-rdv btn-create-rdv--mariee" (click)="openCreateMarieeModal()">
+              <i class="pi pi-heart"></i>
+              Nouveau rendez-vous mariée
+            </button>
+          </div>
+        </div>
+
+        <!-- Sous-filtre mariée -->
+        <div class="rdv-type-filter">
+          <span class="rdv-filter-label">Type :</span>
+          <div class="rdv-pill-group">
+            <button class="rdv-pill" [class.active]="marieeSubFilter() === 'ALL'"
+              (click)="marieeSubFilter.set('ALL')">Toutes</button>
+            <button class="rdv-pill rdv-pill--mariage" [class.active]="marieeSubFilter() === 'PURE'"
+              (click)="marieeSubFilter.set('PURE')">💍 Mariée pure</button>
+            <button class="rdv-pill rdv-pill--mariage-services" [class.active]="marieeSubFilter() === 'SERVICES'"
+              (click)="marieeSubFilter.set('SERVICES')">💍 Mariée + Services</button>
+          </div>
+        </div>
+
+        <div class="table-card">
+          @if (rdvLoading()) {
+            <div class="table-loader">
+              <i class="pi pi-spin pi-spinner"></i>
+              <span>Chargement...</span>
+            </div>
+          } @else if (filteredMarieeRdv().length === 0) {
+            <div class="table-empty">
+              <div class="empty-icon">💍</div>
+              <h3>Aucun rendez-vous mariée trouvé</h3>
+              <p>Créez le premier rendez-vous mariée.</p>
+              <button class="btn-create-rdv btn-create-rdv--mariee" (click)="openCreateMarieeModal()">
+                <i class="pi pi-heart"></i> Nouveau rendez-vous mariée
+              </button>
+            </div>
+          } @else {
+            <div class="table-wrapper">
+              <table class="rdv-table">
+                <thead>
+                  <tr>
+                    <th>Mariée</th>
+                    <th>Statut</th>
+                    <th>Services Mariée</th>
+                    <th>Services Normaux</th>
+                    <th>Rendez-vous</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (rdv of filteredMarieeRdv(); track rdv.id) {
+                    <tr [class.row-annule]="rdv.statut === StatutRendezVous.ANNULE"
+                        [class.row-termine]="rdv.statut === StatutRendezVous.TERMINE">
+                      <!-- Mariée -->
+                      <td>
+                        <div class="client-cell">
+                          <div class="client-avatar client-avatar--mariee">
+                            <i class="pi pi-heart"></i>
+                          </div>
+                          <div class="client-info">
+                            <span class="client-name">{{ rdv.prenomClient }} {{ rdv.nomClient }}</span>
+                            @if (rdv.telephoneClient) {
+                              <span class="client-phone"><i class="pi pi-phone"></i> {{ rdv.telephoneClient }}</span>
+                            }
+                          </div>
+                        </div>
+                      </td>
+                      <!-- Statut mariée -->
+                      <td>
+                        @if (rdv.statutMariee) {
+                          <span class="statut-mariee-badge" [class.voilee]="rdv.statutMariee === StatutMariee.VOILEE">
+                            {{ getStatutMarieeLabel(rdv.statutMariee) }}
+                          </span>
+                        }
+                        <br/>
+                        <span [class]="'statut-badge statut-badge--' + getStatutClass(rdv.statut)">
+                          {{ getStatutLabel(rdv.statut) }}
+                        </span>
+                      </td>
+                      <!-- Services Mariée -->
+                      <td>
+                        <div class="services-list">
+                          @for (srv of rdv.services; track srv.id) {
+                            @if (!srv.employeeId) {
+                              <div class="service-item service-item--mariee">
+                                <span class="service-name">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                                @if (srv.datePrevue) {
+                                  <span class="service-date"><i class="pi pi-calendar"></i> {{ formatDate(srv.datePrevue) }}</span>
+                                }
+                                @if (srv.codeRobe) {
+                                  <span class="service-code-robe"><i class="pi pi-tag"></i> {{ srv.codeRobe }}</span>
+                                }
+                              </div>
+                            }
+                          }
+                        </div>
+                      </td>
+                      <!-- Services Normaux -->
+                      <td>
+                        <div class="services-list">
+                          @for (srv of rdv.services; track srv.id) {
+                            @if (srv.employeeId) {
+                              <div class="service-item">
+                                <span class="service-name">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                                <span class="service-employee"><i class="pi pi-user"></i> {{ srv.employeePrenom }} {{ srv.employeeNom }}</span>
+                                @if (srv.datePrevue) {
+                                  <span class="service-date"><i class="pi pi-calendar"></i> {{ formatDate(srv.datePrevue) }}</span>
+                                }
+                              </div>
+                            }
+                          }
+                        </div>
+                      </td>
+                      <!-- Date RDV -->
+                      <td>
+                        <span class="date-cell">
+                          <i class="pi pi-calendar"></i>
+                          {{ formatDate(rdv.dateDebut) }}
+                        </span>
+                        <br/>
+                        <span class="statut-badge statut-badge--en-attente">Total: {{ rdv.services.length }} service(s)</span>
+                      </td>
+                      <!-- Actions -->
+                      <td>
+                        <div class="action-btns">
+                          @if (rdv.statut === StatutRendezVous.EN_ATTENTE) {
+                            <button class="action-btn action-btn--confirm"
+                              (click)="changerStatut(rdv.id, StatutRendezVous.CONFIRME)" title="Confirmer">
+                              <i class="pi pi-check"></i>
+                            </button>
+                          }
+                          @if (rdv.statut === StatutRendezVous.CONFIRME || rdv.statut === StatutRendezVous.EN_COURS) {
+                            <button class="action-btn action-btn--finish"
+                              (click)="changerStatut(rdv.id, StatutRendezVous.TERMINE)" title="Terminer">
+                              <i class="pi pi-flag"></i>
+                            </button>
+                          }
+                          @if (rdv.statut !== StatutRendezVous.ANNULE && rdv.statut !== StatutRendezVous.TERMINE) {
+                            <button class="action-btn action-btn--cancel"
+                              (click)="changerStatut(rdv.id, StatutRendezVous.ANNULE)" title="Annuler">
+                              <i class="pi pi-times"></i>
+                            </button>
+                          }
+                          <button class="action-btn action-btn--delete"
+                            (click)="confirmDelete(rdv.id)" title="Supprimer">
+                            <i class="pi pi-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    @if (deleteConfirmId() === rdv.id) {
+                      <tr class="confirm-row">
+                        <td colspan="6">
+                          <div class="confirm-delete">
+                            <i class="pi pi-exclamation-triangle"></i>
+                            <span>Supprimer le rendez-vous de <strong>{{ rdv.prenomClient }} {{ rdv.nomClient }}</strong> ?</span>
+                            <div class="confirm-actions">
+                              <button class="confirm-yes" (click)="deleteRdv(rdv.id)"><i class="pi pi-check"></i> Supprimer</button>
+                              <button class="confirm-no" (click)="cancelDelete()"><i class="pi pi-times"></i> Annuler</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ══ OFFRES & FIDÉLITÉ TAB ════════════════════════════════ -->
+      @if (activeTab() === 'offres') {
+        <div class="offres-section">
+
+          <!-- Bannière programme fidélité -->
+          <div class="fidelite-banner">
+            <div class="fidelite-banner__icon"><i class="pi pi-gift"></i></div>
+            <div class="fidelite-banner__text">
+              <strong>Programme de fidélité</strong>
+              <span>Chaque cliente reçoit <em>1 service gratuit</em> après avoir effectué <em>5 services payants</em>.</span>
+            </div>
+          </div>
+
+          <!-- Barre de recherche -->
+          <div class="offres-toolbar">
+            <div class="search-box">
+              <i class="pi pi-search"></i>
+              <input type="text" placeholder="Rechercher une cliente (nom, prénom, téléphone)..."
+                     [ngModel]="fideliteSearchQuery()"
+                     (ngModelChange)="fideliteSearchQuery.set($event)" />
+            </div>
+          </div>
+
+          <!-- Loader -->
+          @if (fideliteLoading()) {
+            <div class="page-loader">
+              <i class="pi pi-spin pi-spinner"></i>
+              <span>Chargement...</span>
+            </div>
+          } @else if (filteredClientesFidelite().length === 0) {
+            <div class="empty-state">
+              <i class="pi pi-users"></i>
+              <p>Aucune cliente avec des services terminés pour le moment.</p>
+            </div>
+          } @else {
+            <div class="clientes-grid">
+              @for (c of filteredClientesFidelite(); track c.telephoneClient) {
+                <div class="cliente-card">
+                  <div class="cliente-card__header">
+                    <div class="cliente-avatar">{{ getClienteInitials(c) }}</div>
+                    <div class="cliente-header-info">
+                      <span class="cliente-name">{{ c.prenomClient }} {{ c.nomClient }}</span>
+                      <span class="cliente-since">Client depuis {{ formatClientDepuis(c.clientDepuis) }}</span>
+                    </div>
+                    @if (c.offresDisponibles > 0) {
+                      <span class="offre-badge">{{ c.offresDisponibles }} offre{{ c.offresDisponibles > 1 ? 's' : '' }} disponible{{ c.offresDisponibles > 1 ? 's' : '' }}</span>
+                    }
+                  </div>
+
+                  <div class="cliente-card__contact">
+                    <span><i class="pi pi-phone"></i> {{ c.telephoneClient }}</span>
+                  </div>
+
+                  <div class="cliente-card__divider"></div>
+
+                  <div class="stats-row">
+                    <div class="stat-item">
+                      <span class="stat-num stat-num--rose">{{ c.totalServices }}</span>
+                      <span class="stat-lbl">Services total</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-num stat-num--green">{{ c.offresGagnees }}</span>
+                      <span class="stat-lbl">Offres gagnées</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-num stat-num--gold">{{ c.offresUtilisees }}</span>
+                      <span class="stat-lbl">Offres utilisées</span>
+                    </div>
+                  </div>
+
+                  <div class="loyalty-progress">
+                    <div class="loyalty-progress__label">
+                      <span>Prochain service gratuit</span>
+                      <span class="loyalty-progress__fraction">{{ c.servicesVersProchainOffre }}/5 services</span>
+                    </div>
+                    <div class="loyalty-bar">
+                      <div class="loyalty-bar__fill" [style.width.%]="getProgressPercent(c)"></div>
+                    </div>
+                    <span class="loyalty-progress__hint">
+                      @if (c.servicesVersProchainOffre === 0 && c.offresDisponibles > 0) {
+                        Offre disponible !
+                      } @else {
+                        Plus que {{ 5 - c.servicesVersProchainOffre }} service{{ (5 - c.servicesVersProchainOffre) > 1 ? 's' : '' }} pour une offre gratuite
+                      }
+                    </span>
+                  </div>
+
+                  @if (c.offresDisponibles > 0) {
+                    <button class="btn-utiliser" (click)="utiliserOffreFidelite(c.telephoneClient)">
+                      <i class="pi pi-check-circle"></i> Utiliser une offre
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+        </div>
+      }
+
+      <!-- ══ STOCK TAB ═════════════════════════════════════════════ -->
+      @if (activeTab() === 'stock') {
+        <section class="stock-section">
+
+          <!-- Alerte stock bas -->
+          @if (stockEnAlerte().length > 0) {
+            <div class="stock-alert-banner">
+              <div class="stock-alert-banner__header">
+                <i class="pi pi-exclamation-triangle"></i>
+                <strong>Alerte stock bas</strong>
+                <span class="stock-alert-count">{{ stockEnAlerte().length }} produit{{ stockEnAlerte().length > 1 ? 's nécessitent' : ' nécessite' }} un réapprovisionnement :</span>
+              </div>
+              <ul class="stock-alert-list">
+                @for (p of stockEnAlerte(); track p.id) {
+                  <li>
+                    <i class="pi pi-circle-fill"></i>
+                    <span>{{ p.nom }} — {{ p.quantite }} {{ p.unite }} restant{{ p.quantite > 1 ? 's' : '' }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+
+          <!-- Toolbar -->
+          <div class="stock-toolbar">
+            <div class="stock-toolbar__left">
+              <div class="search-box">
+                <i class="pi pi-search"></i>
+                <input type="text" placeholder="Rechercher un produit..."
+                  [ngModel]="stockSearchQuery()" (ngModelChange)="stockSearchQuery.set($event)" />
+              </div>
+              <select class="filter-select" [ngModel]="stockCategorieFilter()" (ngModelChange)="stockCategorieFilter.set($event)">
+                <option value="ALL">Toutes catégories</option>
+                @for (cat of CATEGORIES_STOCK; track cat) {
+                  <option [value]="cat">{{ CATEGORIE_STOCK_LABELS[cat] }}</option>
+                }
+              </select>
+            </div>
+            <button class="btn-primary" (click)="openCreateStockModal()">
+              <i class="pi pi-plus"></i> Nouveau produit
+            </button>
+          </div>
+
+          <!-- Table -->
+          @if (stockLoading()) {
+            <div class="stock-loading">
+              <i class="pi pi-spin pi-spinner"></i> Chargement...
+            </div>
+          } @else if (filteredProduits().length === 0) {
+            <div class="stock-empty">
+              <i class="pi pi-box"></i>
+              <p>Aucun produit trouvé.</p>
+            </div>
+          } @else {
+            <div class="stock-table-wrapper">
+              <table class="stock-table">
+                <thead>
+                  <tr>
+                    <th>Produit</th>
+                    <th>Catégorie</th>
+                    <th>Quantité</th>
+                    <th>Qté min</th>
+                    <th>Unité</th>
+                    <th>Prix unitaire</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of filteredProduits(); track p.id) {
+                    <tr [class.stock-table__row--alerte]="p.enAlerte">
+                      <td class="stock-table__nom">{{ p.nom }}</td>
+                      <td>
+                        <span class="categorie-badge categorie-badge--{{ p.categorie.toLowerCase() }}">
+                          {{ getCategorieLabel(p.categorie) }}
+                        </span>
+                      </td>
+                      <td class="stock-table__qty" [class.qty--low]="p.enAlerte">
+                        <strong>{{ p.quantite }}</strong>
+                      </td>
+                      <td class="stock-table__qty-min">{{ p.quantiteMinimum }}</td>
+                      <td>{{ p.unite }}</td>
+                      <td class="stock-table__prix">{{ p.prixUnitaire | number:'1.2-2' }} DH</td>
+                      <td>
+                        @if (p.enAlerte) {
+                          <span class="statut-badge statut-badge--alerte">
+                            <i class="pi pi-exclamation-triangle"></i> Stock bas
+                          </span>
+                        } @else {
+                          <span class="statut-badge statut-badge--ok">
+                            <i class="pi pi-check"></i> OK
+                          </span>
+                        }
+                      </td>
+                      <td class="stock-table__actions">
+                        @if (stockDeleteConfirmId() === p.id) {
+                          <span class="delete-confirm-inline">
+                            Supprimer ?
+                            <button class="btn-confirm-yes" (click)="deleteStock(p.id)">Oui</button>
+                            <button class="btn-confirm-no" (click)="cancelDeleteStock()">Non</button>
+                          </span>
+                        } @else {
+                          <button class="action-btn action-btn--edit" title="Modifier" (click)="openEditStockModal(p)">
+                            <i class="pi pi-pencil"></i>
+                          </button>
+                          <button class="action-btn action-btn--delete" title="Supprimer" (click)="confirmDeleteStock(p.id)">
+                            <i class="pi pi-trash"></i>
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+
+        </section>
+      }
+
+      <!-- ══ PRÉSENCE TAB ══════════════════════════════════════════ -->
+      @if (activeTab() === 'presence') {
+        <section class="presence-section">
+
+          <!-- Stats -->
+          <div class="pres-stats">
+            <div class="pres-stat pres-stat--green">
+              <div class="pres-stat__left">
+                <span class="pres-stat__value">{{ presentsCount() }}</span>
+                <span class="pres-stat__label">Présents</span>
+              </div>
+              <div class="pres-stat__icon"><i class="pi pi-user-plus"></i></div>
+            </div>
+            <div class="pres-stat pres-stat--red">
+              <div class="pres-stat__left">
+                <span class="pres-stat__value">{{ absentsCount() }}</span>
+                <span class="pres-stat__label">Absents</span>
+              </div>
+              <div class="pres-stat__icon"><i class="pi pi-user-minus"></i></div>
+            </div>
+            <div class="pres-stat pres-stat--purple">
+              <div class="pres-stat__left">
+                <span class="pres-stat__value">{{ presences().length }}</span>
+                <span class="pres-stat__label">Total équipe</span>
+              </div>
+              <div class="pres-stat__icon"><i class="pi pi-users"></i></div>
+            </div>
+            <div class="pres-stat pres-stat--gold">
+              <div class="pres-stat__left">
+                <span class="pres-stat__value">{{ totalHeures() }}<small>h</small></span>
+                <span class="pres-stat__label">Heures travaillées</span>
+              </div>
+              <div class="pres-stat__icon"><i class="pi pi-clock"></i></div>
+            </div>
+          </div>
+
+          <!-- Calendar card -->
+          <div class="pres-cal-card">
+            <div class="pres-cal-card__header">
+              <i class="pi pi-calendar"></i>
+              <span>Semaine du {{ presenceWeekDays()[0]?.day }} au {{ presenceWeekDays()[6]?.day }}</span>
+              @if (isToday(presenceSelectedDate())) {
+                <span class="pres-cal-card__today-pill">Aujourd'hui</span>
+              }
+            </div>
+            <div class="pres-cal-days">
+              @for (d of presenceWeekDays(); track d.iso) {
+                <button class="pres-cal-day"
+                  [class.active]="presenceSelectedDate() === d.iso"
+                  [class.today]="isToday(d.iso)"
+                  (click)="selectPresenceDate(d.iso)">
+                  <span class="pres-cal-day__name">{{ d.label }}</span>
+                  <span class="pres-cal-day__num">{{ d.day }}</span>
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Employee list -->
+          <div class="pres-list-card">
+            <div class="pres-list-card__header">
+              <span class="pres-list-card__title">
+                <i class="pi pi-list"></i> Équipe — {{ formatPresenceDate(presenceSelectedDate()) }}
+              </span>
+              @if (!isToday(presenceSelectedDate())) {
+                <span class="pres-readonly-pill"><i class="pi pi-eye"></i> Lecture seule</span>
+              }
+            </div>
+
+            @if (presenceLoading()) {
+              <div class="pres-loader">
+                <i class="pi pi-spin pi-spinner"></i>
+                <span>Chargement...</span>
+              </div>
+            } @else if (presences().length === 0) {
+              <div class="pres-empty">
+                <i class="pi pi-users"></i>
+                <p>Aucun employé trouvé.</p>
+              </div>
+            } @else {
+
+              <!-- Desktop table -->
+              <div class="pres-table-wrap">
+                <table class="pres-table">
+                  <thead>
+                    <tr>
+                      <th>Employé</th>
+                      <th>Horaires</th>
+                      <th>Statut</th>
+                      <th class="pres-table__th-action">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (p of presences(); track p.employeeId) {
+                      <tr [class]="'pres-row pres-row--' + getPresenceStatutClass(p.statut)">
+                        <td>
+                          <div class="pres-emp">
+                            <div class="pres-emp__avatar pres-emp__avatar--{{ getPresenceStatutClass(p.statut) }}">
+                              {{ getEmployeeInitials(p) }}
+                            </div>
+                            <div class="pres-emp__info">
+                              <strong>{{ p.employeePrenom }} {{ p.employeeNom }}</strong>
+                              @if (p.employeeSpecialite) {
+                                <span>{{ getSpecialiteLabel(p.employeeSpecialite) }}</span>
+                              }
+                            </div>
+                          </div>
+                        </td>
+                        <td class="pres-horaires">
+                          @if (p.statut === StatutPresence.ABSENT) {
+                            <span class="pres-horaires__empty">
+                              <i class="pi pi-minus-circle"></i> Pas encore arrivé(e)
+                            </span>
+                          } @else {
+                            <div class="pres-horaires__chips">
+                              @if (p.heureArrivee) {
+                                <span class="pres-chip pres-chip--in">
+                                  <i class="pi pi-sign-in"></i> {{ p.heureArrivee }}
+                                </span>
+                              }
+                              @if (p.heureDepart) {
+                                <span class="pres-chip pres-chip--out">
+                                  <i class="pi pi-sign-out"></i> {{ p.heureDepart }}
+                                </span>
+                              }
+                              @if (p.heuresTravaillees != null) {
+                                <span class="pres-chip pres-chip--dur">
+                                  <i class="pi pi-hourglass"></i> {{ p.heuresTravaillees }}h
+                                </span>
+                              }
+                            </div>
+                          }
+                        </td>
+                        <td>
+                          <span class="pres-badge pres-badge--{{ getPresenceStatutClass(p.statut) }}">
+                            <span class="pres-badge__dot"></span>
+                            {{ getPresenceStatutLabel(p.statut) }}
+                          </span>
+                        </td>
+                        <td class="pres-table__td-action">
+                          @if (p.statut === StatutPresence.ABSENT) {
+                            <button class="pres-btn pres-btn--arrivee"
+                              [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
+                              (click)="marquerArrivee(p.employeeId)">
+                              @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
+                              @else { <i class="pi pi-sign-in"></i> } Arrivée
+                            </button>
+                          } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && !p.heureDepart) {
+                            <button class="pres-btn pres-btn--depart"
+                              [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
+                              (click)="marquerDepart(p.employeeId)">
+                              @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
+                              @else { <i class="pi pi-sign-out"></i> } Départ
+                            </button>
+                          } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && p.heureDepart) {
+                            <button class="pres-btn pres-btn--terminer"
+                              [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
+                              (click)="terminerPresence(p.employeeId)">
+                              @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
+                              @else { <i class="pi pi-flag"></i> } Terminer
+                            </button>
+                          } @else {
+                            <span class="pres-done"><i class="pi pi-check-circle"></i> Terminé</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Mobile cards -->
+              <div class="pres-cards">
+                @for (p of presences(); track p.employeeId) {
+                  <div class="pres-card pres-card--{{ getPresenceStatutClass(p.statut) }}">
+                    <div class="pres-card__top">
+                      <div class="pres-emp">
+                        <div class="pres-emp__avatar pres-emp__avatar--{{ getPresenceStatutClass(p.statut) }}">
+                          {{ getEmployeeInitials(p) }}
+                        </div>
+                        <div class="pres-emp__info">
+                          <strong>{{ p.employeePrenom }} {{ p.employeeNom }}</strong>
+                          @if (p.employeeSpecialite) {
+                            <span>{{ getSpecialiteLabel(p.employeeSpecialite) }}</span>
+                          }
+                        </div>
+                      </div>
+                      <span class="pres-badge pres-badge--{{ getPresenceStatutClass(p.statut) }}">
+                        <span class="pres-badge__dot"></span>
+                        {{ getPresenceStatutLabel(p.statut) }}
+                      </span>
+                    </div>
+
+                    @if (p.statut !== StatutPresence.ABSENT) {
+                      <div class="pres-card__chips">
+                        @if (p.heureArrivee) {
+                          <span class="pres-chip pres-chip--in"><i class="pi pi-sign-in"></i> {{ p.heureArrivee }}</span>
+                        }
+                        @if (p.heureDepart) {
+                          <span class="pres-chip pres-chip--out"><i class="pi pi-sign-out"></i> {{ p.heureDepart }}</span>
+                        }
+                        @if (p.heuresTravaillees != null) {
+                          <span class="pres-chip pres-chip--dur"><i class="pi pi-hourglass"></i> {{ p.heuresTravaillees }}h travaillées</span>
+                        }
+                      </div>
+                    } @else {
+                      <p class="pres-card__absent-txt"><i class="pi pi-minus-circle"></i> Pas encore arrivé(e)</p>
+                    }
+
+                    <div class="pres-card__footer">
+                      @if (p.statut === StatutPresence.ABSENT) {
+                        <button class="pres-btn pres-btn--arrivee pres-btn--full"
+                          [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
+                          (click)="marquerArrivee(p.employeeId)">
+                          @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
+                          @else { <i class="pi pi-sign-in"></i> } Marquer arrivée
+                        </button>
+                      } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && !p.heureDepart) {
+                        <button class="pres-btn pres-btn--depart pres-btn--full"
+                          [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
+                          (click)="marquerDepart(p.employeeId)">
+                          @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
+                          @else { <i class="pi pi-sign-out"></i> } Marquer départ
+                        </button>
+                      } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && p.heureDepart) {
+                        <button class="pres-btn pres-btn--terminer pres-btn--full"
+                          [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
+                          (click)="terminerPresence(p.employeeId)">
+                          @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
+                          @else { <i class="pi pi-flag"></i> } Terminer la journée
+                        </button>
+                      } @else {
+                        <span class="pres-done"><i class="pi pi-check-circle"></i> Journée terminée</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+
+            }
+          </div>
+
+        </section>
+      }
+
     }
   </main>
 </div>
@@ -416,13 +1172,22 @@
     <div class="rdv-modal" (click)="$event.stopPropagation()">
 
       <!-- Header -->
-      <div class="rdv-modal__header">
-        <div class="rdv-modal__icon">
-          <i class="pi {{ rdvModalMode() === 'create' ? 'pi-calendar-plus' : 'pi-pencil' }}"></i>
+      <div class="rdv-modal__header" [class.rdv-modal__header--mariee]="rdvForm.typeClient === TypeClient.MARIAGE">
+        <div class="rdv-modal__icon" [class.rdv-modal__icon--mariee]="rdvForm.typeClient === TypeClient.MARIAGE">
+          @if (rdvForm.typeClient === TypeClient.MARIAGE) {
+            <i class="pi pi-heart"></i>
+          } @else {
+            <i class="pi {{ rdvModalMode() === 'create' ? 'pi-calendar-plus' : 'pi-pencil' }}"></i>
+          }
         </div>
         <div>
-          <h2>{{ rdvModalMode() === 'create' ? 'Nouveau Rendez-vous' : 'Modifier le Rendez-vous' }}</h2>
-          <p>{{ rdvModalMode() === 'create' ? 'Remplissez les informations du rendez-vous' : 'Modifiez les informations ci-dessous' }}</p>
+          @if (rdvForm.typeClient === TypeClient.MARIAGE) {
+            <h2>{{ rdvModalMode() === 'create' ? 'Nouveau Rendez-vous Mariée' : 'Modifier le Rendez-vous Mariée' }}</h2>
+            <p>{{ rdvModalMode() === 'create' ? 'Renseignez les informations et les services de la mariée' : 'Modifiez les informations ci-dessous' }}</p>
+          } @else {
+            <h2>{{ rdvModalMode() === 'create' ? 'Nouveau Rendez-vous' : 'Modifier le Rendez-vous' }}</h2>
+            <p>{{ rdvModalMode() === 'create' ? 'Remplissez les informations du rendez-vous' : 'Modifiez les informations ci-dessous' }}</p>
+          }
         </div>
         <button class="rdv-modal__close" (click)="closeRdvModal()">
           <i class="pi pi-times"></i>
@@ -453,171 +1218,327 @@
             <div class="modal-form-group">
               <label>Téléphone</label>
               <input type="tel" [(ngModel)]="rdvForm.telephoneClient"
-                class="modal-input" placeholder="+216 xx xxx xxx" />
+                class="modal-input" placeholder="xx xxx xxx" maxlength="8" />
             </div>
             <div class="modal-form-group">
               <label>Type de client *</label>
-              <div class="radio-group">
-                <label class="radio-option">
-                  <input type="radio" [(ngModel)]="rdvForm.typeClient"
-                    [value]="TypeClient.NORMAL" name="typeClient" />
-                  <span class="radio-label">Normal</span>
-                </label>
-                <label class="radio-option radio-option--mariage">
-                  <input type="radio" [(ngModel)]="rdvForm.typeClient"
-                    [value]="TypeClient.MARIAGE" name="typeClient" />
-                  <span class="radio-label">💍 Mariage</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section : Planification -->
-        <div class="modal-section">
-          <div class="modal-section__title">
-            <i class="pi pi-calendar"></i> Planification
-          </div>
-          <div class="modal-form-grid">
-            <div class="modal-form-group">
-              <label>Date et heure de début *</label>
-              <input type="datetime-local" [(ngModel)]="rdvForm.dateDebut"
-                class="modal-input" (change)="onDateOrHoursChange()" />
-            </div>
-            <div class="modal-form-group">
-              <label>Durée (heures) *</label>
-              <div class="input-with-unit">
-                <input type="number" [(ngModel)]="rdvForm.nbHeures"
-                  class="modal-input" min="1" max="12" (change)="onDateOrHoursChange()" />
-                <span class="unit-label">heures</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section : Services -->
-        <div class="modal-section">
-          <div class="modal-section__title">
-            <i class="pi pi-star"></i> Services
-            <span class="section-hint">Sélectionnez un service puis un employé disponible</span>
-          </div>
-
-          @for (srv of rdvForm.services; track $index; let i = $index) {
-            <div class="service-row">
-              <div class="service-row__number">{{ i + 1 }}</div>
-
-              <div class="service-row__fields">
-                <!-- Type de service -->
-                <div class="modal-form-group">
-                  <label>Type de service *</label>
-                  @if (serviceGroups().length > 0) {
-                    <select [(ngModel)]="srv.typeService"
-                      class="modal-input modal-select"
-                      (ngModelChange)="onTypeServiceChange(i)">
-                      <option value="">Sélectionner un service...</option>
-                      @for (group of serviceGroups(); track group.specialite) {
-                        <optgroup [label]="getSpecialiteLabel(group.specialite)">
-                          @for (ts of group.services; track ts) {
-                            <option [value]="ts">{{ getTypeServiceLabel(ts) }}</option>
-                          }
-                        </optgroup>
-                      }
-                    </select>
-                  } @else {
-                    <select [(ngModel)]="srv.typeService"
-                      class="modal-input modal-select"
-                      (ngModelChange)="onTypeServiceChange(i)">
-                      <option value="">Sélectionner un service...</option>
-                      <optgroup label="Soins">
-                        <option value="SOIN_VISAGE">Soin visage</option>
-                        <option value="SOIN_PIED">Soin pied</option>
-                        <option value="SOIN_MAIN">Soin main</option>
-                        <option value="HYDRAFACIALE">Hydrafaciale</option>
-                      </optgroup>
-                      <optgroup label="Coiffeuse">
-                        <option value="COUPE">Coupe</option>
-                        <option value="PROTEINE">Protéine</option>
-                        <option value="COLORATION_SIMPLE">Coloration simple</option>
-                        <option value="BALAYAGE">Balayage</option>
-                        <option value="SOIN_CAPILLAIRE">Soin capillaire</option>
-                        <option value="BRUSHING">Brushing</option>
-                      </optgroup>
-                      <optgroup label="Esthéticienne">
-                        <option value="EPILATION_VISAGE">Épilation visage</option>
-                        <option value="EPILATION_MOUSTACHE">Épilation moustache</option>
-                        <option value="EPILATION_SOURCILS">Épilation sourcils</option>
-                      </optgroup>
-                      <optgroup label="Onglerie">
-                        <option value="VERNIS_PERMANENT_MAIN">Vernis permanent (main)</option>
-                        <option value="VERNIS_PERMANENT_PIED">Vernis permanent (pied)</option>
-                        <option value="GEL_SUR_ONGLE_NATURELLE">Gel ongle naturelle</option>
-                        <option value="GEL_CAPSULE">Gel capsule</option>
-                        <option value="DEPOSE_VERNIS">Dépose vernis</option>
-                      </optgroup>
-                      <optgroup label="Maquillage">
-                        <option value="MAQUILLAGE">Maquillage</option>
-                      </optgroup>
-                    </select>
-                  }
-                </div>
-
-                <!-- Employé disponible -->
-                <div class="modal-form-group">
-                  <label>
-                    Employée disponible
-                    @if (rdvForm.typeClient === TypeClient.MARIAGE) {
-                      <span class="optional-badge">optionnel</span>
-                    } @else {
-                      <span class="required-star">*</span>
-                    }
-                  </label>
-                  @if (srv.loadingEmployees) {
-                    <div class="loading-employees">
-                      <i class="pi pi-spin pi-spinner"></i>
-                      <span>Recherche des disponibilités...</span>
-                    </div>
-                  } @else if (!srv.typeService || !rdvForm.dateDebut || rdvForm.nbHeures < 1) {
-                    <div class="employee-hint">
-                      <i class="pi pi-info-circle"></i>
-                      Sélectionnez un service, une date et une durée
-                    </div>
-                  } @else if (srv.availableEmployees.length === 0) {
-                    <div [class]="rdvForm.typeClient === TypeClient.MARIAGE ? 'no-employees-mariage' : 'no-employees'">
-                      <i class="pi pi-{{ rdvForm.typeClient === TypeClient.MARIAGE ? 'info-circle' : 'exclamation-circle' }}"></i>
-                      @if (rdvForm.typeClient === TypeClient.MARIAGE) {
-                        Aucune employée disponible — vous pouvez continuer sans en assigner une
-                      } @else {
-                        Aucune employée disponible pour ce créneau
-                      }
-                    </div>
-                  } @else {
-                    <select [(ngModel)]="srv.employeeId" class="modal-input modal-select">
-                      <option [ngValue]="null">Sélectionner une employée...</option>
-                      @for (emp of srv.availableEmployees; track emp.id) {
-                        <option [ngValue]="emp.id">
-                          {{ emp.prenom }} {{ emp.nom }}
-                          @if (emp.specialite) { — {{ emp.specialite }} }
-                        </option>
-                      }
-                    </select>
-                  }
-                </div>
-              </div>
-
-              <!-- Remove button -->
-              @if (rdvForm.services.length > 1) {
-                <button class="service-remove-btn" (click)="removeServiceRow(i)" title="Retirer ce service">
-                  <i class="pi pi-minus-circle"></i>
+              <div class="type-client-toggle">
+                <button type="button"
+                  [class.active]="rdvForm.typeClient === TypeClient.NORMAL"
+                  (click)="rdvForm.typeClient = TypeClient.NORMAL; onTypeClientChange()">
+                  <i class="pi pi-user"></i> Normal
                 </button>
+                <button type="button"
+                  [class.active]="rdvForm.typeClient === TypeClient.MARIAGE"
+                  (click)="rdvForm.typeClient = TypeClient.MARIAGE; onTypeClientChange()">
+                  <i class="pi pi-heart"></i> Mariée
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        @if (rdvForm.typeClient === TypeClient.MARIAGE) {
+
+          <!-- ── Mode Mariée : statut + services deux colonnes ── -->
+          <div class="modal-section">
+            <div class="modal-section__title">
+              <i class="pi pi-heart"></i> Statut de la mariée
+            </div>
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" [(ngModel)]="rdvForm.statutMariee"
+                  [value]="StatutMariee.NON_VOILEE" name="statutMariee" />
+                <span class="radio-label">Non voilée</span>
+              </label>
+              <label class="radio-option radio-option--voilee">
+                <input type="radio" [(ngModel)]="rdvForm.statutMariee"
+                  [value]="StatutMariee.VOILEE" name="statutMariee" />
+                <span class="radio-label">Voilée</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="mariee-services-grid">
+
+            <!-- Colonne gauche : Services Mariée -->
+            <div class="mariee-services-col mariee-services-col--pink">
+              <div class="mariee-col-header">
+                <div class="mariee-col-title">
+                  <i class="pi pi-heart"></i> Services Mariée
+                </div>
+                <button type="button" class="btn-add-service btn-add-service--sm" (click)="addMarieeService()">
+                  <i class="pi pi-plus"></i> Ajouter
+                </button>
+              </div>
+
+              @for (srv of rdvForm.marieeServices; track $index; let i = $index) {
+                <div class="mariee-service-card mariee-service-card--pink">
+                  @if (rdvForm.marieeServices.length > 1) {
+                    <button type="button" class="service-remove-btn service-remove-btn--sm"
+                      (click)="removeMarieeService(i)" title="Retirer">
+                      <i class="pi pi-times"></i>
+                    </button>
+                  }
+                  <div class="modal-form-group">
+                    <label>Service *</label>
+                    <select [(ngModel)]="srv.typeService" class="modal-input modal-select">
+                      <option value="">Sélectionner...</option>
+                      @for (ts of MARIEE_SERVICE_TYPES; track ts) {
+                        <option [value]="ts">{{ getTypeServiceLabel(ts) }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="modal-form-grid">
+                    <div class="modal-form-group">
+                      <label>Date *</label>
+                      <input type="date" [(ngModel)]="srv.date" class="modal-input" [min]="getTodayDate()" />
+                    </div>
+                    <div class="modal-form-group">
+                      <label>Heure *</label>
+                      <input type="time" [(ngModel)]="srv.heure" class="modal-input" />
+                    </div>
+                  </div>
+                  <div class="modal-form-group">
+                    <label>Code Robe <span class="optional-badge">optionnel</span></label>
+                    <input type="text" [(ngModel)]="srv.codeRobe"
+                      class="modal-input" placeholder="Ex: R001" />
+                  </div>
+                </div>
               }
             </div>
-          }
 
-          <button class="btn-add-service" (click)="addServiceRow()">
-            <i class="pi pi-plus-circle"></i>
-            Ajouter un autre service
-          </button>
-        </div>
+            <!-- Colonne droite : Services Normaux -->
+            <div class="mariee-services-col mariee-services-col--blue">
+              <div class="mariee-col-header">
+                <div class="mariee-col-title">
+                  <i class="pi pi-star"></i> Services Normaux
+                </div>
+                <button type="button" class="btn-add-service btn-add-service--sm btn-add-service--outline"
+                  (click)="addNormaleServiceMariee()">
+                  <i class="pi pi-plus"></i> Ajouter
+                </button>
+              </div>
+
+              @if (rdvForm.normaleServices.length === 0) {
+                <div class="mariee-empty-services">
+                  <i class="pi pi-info-circle"></i>
+                  Aucun service normal ajouté
+                </div>
+              }
+
+              @for (srv of rdvForm.normaleServices; track $index; let i = $index) {
+                <div class="mariee-service-card mariee-service-card--blue">
+                  <button type="button" class="service-remove-btn service-remove-btn--sm"
+                    (click)="removeNormaleServiceMariee(i)" title="Retirer">
+                    <i class="pi pi-times"></i>
+                  </button>
+                  <div class="modal-form-group">
+                    <label>Service *</label>
+                    @if (serviceGroups().length > 0) {
+                      <select [(ngModel)]="srv.typeService" class="modal-input modal-select"
+                        (ngModelChange)="onNormaleServiceMarieeChange(i)">
+                        <option value="">Sélectionner...</option>
+                        @for (group of serviceGroups(); track group.specialite) {
+                          <optgroup [label]="getSpecialiteLabel(group.specialite)">
+                            @for (ts of group.services; track ts) {
+                              <option [value]="ts">{{ getTypeServiceLabel(ts) }}</option>
+                            }
+                          </optgroup>
+                        }
+                      </select>
+                    } @else {
+                      <select [(ngModel)]="srv.typeService" class="modal-input modal-select"
+                        (ngModelChange)="onNormaleServiceMarieeChange(i)">
+                        <option value="">Sélectionner...</option>
+                      </select>
+                    }
+                  </div>
+                  <div class="modal-form-grid">
+                    <div class="modal-form-group">
+                      <label>Date *</label>
+                      <input type="date" [(ngModel)]="srv.date" class="modal-input"
+                        [min]="getTodayDate()" (ngModelChange)="onNormaleServiceMarieeDateChange(i)" />
+                    </div>
+                    <div class="modal-form-group">
+                      <label>Heure *</label>
+                      <input type="time" [(ngModel)]="srv.heure" class="modal-input"
+                        (ngModelChange)="onNormaleServiceMarieeDateChange(i)" />
+                    </div>
+                  </div>
+                  <div class="modal-form-grid">
+                    <div class="modal-form-group">
+                      <label>Durée (min) *</label>
+                      <input type="number" [(ngModel)]="srv.dureeMinutes" class="modal-input"
+                        min="1" max="480" (ngModelChange)="onNormaleServiceMarieeDateChange(i)" />
+                    </div>
+                    <div class="modal-form-group">
+                      <label>Employée *</label>
+                      @if (srv.loadingEmployees) {
+                        <div class="loading-employees">
+                          <i class="pi pi-spin pi-spinner"></i> Recherche...
+                        </div>
+                      } @else if (!srv.typeService || !srv.date || !srv.heure || srv.dureeMinutes < 1) {
+                        <div class="employee-hint">
+                          <i class="pi pi-info-circle"></i> Renseignez service, date, heure et durée
+                        </div>
+                      } @else if (srv.availableEmployees.length === 0) {
+                        <div class="no-employees">
+                          <i class="pi pi-exclamation-circle"></i> Aucune disponible
+                        </div>
+                      } @else {
+                        <select [(ngModel)]="srv.employeeId" class="modal-input modal-select">
+                          <option [ngValue]="null">Sélectionner...</option>
+                          @for (emp of srv.availableEmployees; track emp.id) {
+                            <option [ngValue]="emp.id">
+                              {{ emp.prenom }} {{ emp.nom }}
+                              @if (emp.specialite) { — {{ emp.specialite }} }
+                            </option>
+                          }
+                        </select>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+
+          </div>
+
+        } @else {
+
+          <!-- ── Mode Normal : planification + services ── -->
+          <div class="modal-section">
+            <div class="modal-section__title">
+              <i class="pi pi-calendar"></i> Planification
+            </div>
+            <div class="modal-form-grid">
+              <div class="modal-form-group">
+                <label>Date et heure de début *</label>
+                <input type="datetime-local" [(ngModel)]="rdvForm.dateDebut"
+                  class="modal-input" [min]="getTodayMin()" (change)="onDateOrHoursChange()" />
+              </div>
+              <div class="modal-form-group">
+                <label>Durée (minutes) *</label>
+                <div class="input-with-unit">
+                  <input type="number" [(ngModel)]="rdvForm.dureeMinutes"
+                    class="modal-input" min="1" max="480" (change)="onDateOrHoursChange()" />
+                  <span class="unit-label">min</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-section">
+            <div class="modal-section__title">
+              <i class="pi pi-star"></i> Services
+              <span class="section-hint">Sélectionnez un service puis un employé disponible</span>
+            </div>
+
+            @for (srv of rdvForm.services; track $index; let i = $index) {
+              <div class="service-row">
+                <div class="service-row__number">{{ i + 1 }}</div>
+
+                <div class="service-row__fields">
+                  <div class="modal-form-group">
+                    <label>Type de service *</label>
+                    @if (serviceGroups().length > 0) {
+                      <select [(ngModel)]="srv.typeService"
+                        class="modal-input modal-select"
+                        (ngModelChange)="onTypeServiceChange(i)">
+                        <option value="">Sélectionner un service...</option>
+                        @for (group of serviceGroups(); track group.specialite) {
+                          <optgroup [label]="getSpecialiteLabel(group.specialite)">
+                            @for (ts of group.services; track ts) {
+                              <option [value]="ts">{{ getTypeServiceLabel(ts) }}</option>
+                            }
+                          </optgroup>
+                        }
+                      </select>
+                    } @else {
+                      <select [(ngModel)]="srv.typeService"
+                        class="modal-input modal-select"
+                        (ngModelChange)="onTypeServiceChange(i)">
+                        <option value="">Sélectionner un service...</option>
+                        <optgroup label="Soins">
+                          <option value="SOIN_VISAGE">Soin visage</option>
+                          <option value="SOIN_PIED">Soin pied</option>
+                          <option value="SOIN_MAIN">Soin main</option>
+                          <option value="HYDRAFACIALE">Hydrafaciale</option>
+                        </optgroup>
+                        <optgroup label="Coiffeuse">
+                          <option value="COUPE">Coupe</option>
+                          <option value="PROTEINE">Protéine</option>
+                          <option value="COLORATION_SIMPLE">Coloration simple</option>
+                          <option value="BALAYAGE">Balayage</option>
+                          <option value="SOIN_CAPILLAIRE">Soin capillaire</option>
+                          <option value="BRUSHING">Brushing</option>
+                        </optgroup>
+                        <optgroup label="Esthéticienne">
+                          <option value="EPILATION_VISAGE">Épilation visage</option>
+                          <option value="EPILATION_MOUSTACHE">Épilation moustache</option>
+                          <option value="EPILATION_SOURCILS">Épilation sourcils</option>
+                        </optgroup>
+                        <optgroup label="Onglerie">
+                          <option value="VERNIS_PERMANENT_MAIN">Vernis permanent (main)</option>
+                          <option value="VERNIS_PERMANENT_PIED">Vernis permanent (pied)</option>
+                          <option value="GEL_SUR_ONGLE_NATURELLE">Gel ongle naturelle</option>
+                          <option value="GEL_CAPSULE">Gel capsule</option>
+                          <option value="DEPOSE_VERNIS">Dépose vernis</option>
+                        </optgroup>
+                        <optgroup label="Maquillage">
+                          <option value="MAQUILLAGE">Maquillage</option>
+                        </optgroup>
+                      </select>
+                    }
+                  </div>
+
+                  <div class="modal-form-group">
+                    <label>Employée disponible <span class="required-star">*</span></label>
+                    @if (srv.loadingEmployees) {
+                      <div class="loading-employees">
+                        <i class="pi pi-spin pi-spinner"></i>
+                        <span>Recherche des disponibilités...</span>
+                      </div>
+                    } @else if (!srv.typeService || !rdvForm.dateDebut || rdvForm.dureeMinutes < 1) {
+                      <div class="employee-hint">
+                        <i class="pi pi-info-circle"></i>
+                        Sélectionnez un service, une date et une durée
+                      </div>
+                    } @else if (srv.availableEmployees.length === 0) {
+                      <div class="no-employees">
+                        <i class="pi pi-exclamation-circle"></i>
+                        Aucune employée disponible pour ce créneau
+                      </div>
+                    } @else {
+                      <select [(ngModel)]="srv.employeeId" class="modal-input modal-select">
+                        <option [ngValue]="null">Sélectionner une employée...</option>
+                        @for (emp of srv.availableEmployees; track emp.id) {
+                          <option [ngValue]="emp.id">
+                            {{ emp.prenom }} {{ emp.nom }}
+                            @if (emp.specialite) { — {{ emp.specialite }} }
+                          </option>
+                        }
+                      </select>
+                    }
+                  </div>
+                </div>
+
+                @if (rdvForm.services.length > 1) {
+                  <button class="service-remove-btn" (click)="removeServiceRow(i)" title="Retirer ce service">
+                    <i class="pi pi-minus-circle"></i>
+                  </button>
+                }
+              </div>
+            }
+
+            <button class="btn-add-service" (click)="addServiceRow()">
+              <i class="pi pi-plus-circle"></i>
+              Ajouter un autre service
+            </button>
+          </div>
+
+        }
 
         <!-- Error -->
         @if (rdvModalError()) {
@@ -634,12 +1555,102 @@
           Annuler
         </button>
         <button class="modal-btn-submit"
+          [class.modal-btn-submit--mariee]="rdvForm.typeClient === TypeClient.MARIAGE"
           [disabled]="rdvModalLoading()"
           (click)="rdvModalMode() === 'create' ? submitCreate() : submitEdit()">
           @if (rdvModalLoading()) {
             <i class="pi pi-spin pi-spinner"></i> En cours...
+          } @else if (rdvForm.typeClient === TypeClient.MARIAGE && rdvModalMode() === 'create') {
+            <i class="pi pi-heart"></i> Créer le rendez-vous mariée
           } @else if (rdvModalMode() === 'create') {
             <i class="pi pi-check"></i> Créer le rendez-vous
+          } @else {
+            <i class="pi pi-check"></i> Sauvegarder
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+
+
+<!-- ══ STOCK MODAL ══════════════════════════════════════════════ -->
+@if (stockModalOpen()) {
+  <div class="modal-overlay" (click)="closeStockModal()">
+    <div class="stock-modal" (click)="$event.stopPropagation()">
+
+      <div class="stock-modal__header">
+        <h2>
+          <i class="pi pi-box"></i>
+          {{ stockModalMode() === 'create' ? 'Nouveau produit' : 'Modifier le produit' }}
+        </h2>
+        <button class="modal-close-btn" (click)="closeStockModal()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="stock-modal__body">
+
+        <div class="modal-form-grid">
+          <div class="modal-form-group modal-form-group--full">
+            <label>Nom du produit *</label>
+            <input type="text" [(ngModel)]="stockForm.nom" class="modal-input"
+              placeholder="Ex : Vernis à ongles - Rouge" />
+          </div>
+
+          <div class="modal-form-group">
+            <label>Catégorie *</label>
+            <select [(ngModel)]="stockForm.categorie" class="modal-input modal-select">
+              <option value="">Sélectionner une catégorie...</option>
+              @for (cat of CATEGORIES_STOCK; track cat) {
+                <option [value]="cat">{{ CATEGORIE_STOCK_LABELS[cat] }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="modal-form-group">
+            <label>Unité *</label>
+            <input type="text" [(ngModel)]="stockForm.unite" class="modal-input"
+              placeholder="bouteilles, litres, tubes, unités, pots…" />
+          </div>
+
+          <div class="modal-form-group">
+            <label>Quantité *</label>
+            <input type="number" [(ngModel)]="stockForm.quantite" class="modal-input" min="0" />
+          </div>
+
+          <div class="modal-form-group">
+            <label>Quantité minimum *</label>
+            <input type="number" [(ngModel)]="stockForm.quantiteMinimum" class="modal-input" min="0" />
+          </div>
+
+          <div class="modal-form-group modal-form-group--full">
+            <label>Prix unitaire (DH) *</label>
+            <input type="number" [(ngModel)]="stockForm.prixUnitaire" class="modal-input" min="0" step="0.01"
+              placeholder="0.00" />
+          </div>
+        </div>
+
+        @if (stockModalError()) {
+          <div class="modal-error">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ stockModalError() }}
+          </div>
+        }
+
+      </div>
+
+      <div class="stock-modal__footer">
+        <button class="modal-btn-cancel" (click)="closeStockModal()" [disabled]="stockModalLoading()">
+          Annuler
+        </button>
+        <button class="modal-btn-submit" (click)="submitStockForm()" [disabled]="stockModalLoading()">
+          @if (stockModalLoading()) {
+            <i class="pi pi-spin pi-spinner"></i> En cours...
+          } @else if (stockModalMode() === 'create') {
+            <i class="pi pi-plus"></i> Ajouter le produit
           } @else {
             <i class="pi pi-check"></i> Sauvegarder
           }

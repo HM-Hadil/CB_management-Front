@@ -6,7 +6,7 @@ import { UpdateProfileRequest, UserDto } from '../models/auth.models';
 @Injectable({ providedIn: 'root' })
 export class ProfileService {
 
-  private readonly API_URL = 'http://localhost:8080/api/profile';
+  private readonly API_URL = 'http://localhost:9090/api/profile';
 
   constructor(private http: HttpClient) {}
 

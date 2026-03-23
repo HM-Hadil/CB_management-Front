@@ -34,8 +34,6 @@ export class EmployeeDashboardComponent implements OnInit {
   activeTab = signal<Tab>('profile');
   showCurrentPw = signal(false);
   showNewPw = signal(false);
-  selectedRdv = signal<RendezVousResponse | null>(null);
-  showDetailModal = signal(false);
 
   profileForm: UpdateProfileRequest = {
     telephone: '',
@@ -61,37 +59,83 @@ export class EmployeeDashboardComponent implements OnInit {
   rendezVous = signal<RendezVousResponse[]>([]);
   planningLoading = signal(false);
   filterStatut = signal<StatutRendezVous | 'ALL'>('ALL');
-  filterTypeClient = signal<TypeClient | 'ALL'>('ALL');
+  filterTypeClient = signal<TypeClient | 'ALL' | 'MARIAGE_SERVICES'>('ALL');
   planningSearch = signal('');
+  planningFilterDate = signal<string>('');
+  viewPeriod = signal<'today' | 'week' | 'month' | 'all'>('today');
 
   // ── Expose enums ──────────────────────────────────────────────
   StatutRendezVous = StatutRendezVous;
   TypeClient = TypeClient;
 
   // ── Computed planning ─────────────────────────────────────────
-  filteredPlanning = computed(() => {
+  private planningBaseList = computed(() => {
     let list = this.rendezVous();
+    const period = this.viewPeriod();
+    const d = this.planningFilterDate();
+    if (!d) {
+      const now = new Date();
+      if (period === 'today') {
+        const today = now.toDateString();
+        list = list.filter(r => new Date(r.dateDebut).toDateString() === today);
+      } else if (period === 'week') {
+        const day = now.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        const mon = new Date(now); mon.setDate(now.getDate() + diff); mon.setHours(0, 0, 0, 0);
+        const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23, 59, 59, 999);
+        list = list.filter(r => { const rd = new Date(r.dateDebut); return rd >= mon && rd <= sun; });
+      } else if (period === 'month') {
+        list = list.filter(r => {
+          const rd = new Date(r.dateDebut);
+          return rd.getMonth() === now.getMonth() && rd.getFullYear() === now.getFullYear();
+        });
+      }
+    } else {
+      list = list.filter(r => r.dateDebut.startsWith(d));
+    }
+    return list;
+  });
+
+  filteredPlanning = computed(() => {
+    let list = this.planningBaseList();
     const st = this.filterStatut();
     const tc = this.filterTypeClient();
     const q  = this.planningSearch().toLowerCase().trim();
-
     if (st !== 'ALL') list = list.filter(r => r.statut === st);
-    if (tc !== 'ALL') list = list.filter(r => r.typeClient === tc);
-    if (q)            list = list.filter(r =>
+    if (tc === TypeClient.NORMAL) list = list.filter(r => r.typeClient === TypeClient.NORMAL);
+    else if (tc === 'MARIAGE_SERVICES') list = list.filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId));
+    if (q) list = list.filter(r =>
       r.nomClient.toLowerCase().includes(q) ||
       r.prenomClient.toLowerCase().includes(q) ||
       (r.telephoneClient?.toLowerCase().includes(q) ?? false)
     );
-    return list;
+    return [...list].sort((a, b) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
   });
 
-  totalRdv     = computed(() => this.rendezVous().length);
+  totalRdv      = computed(() => this.rendezVous().length);
   rdvAujourdhui = computed(() => {
     const today = new Date().toDateString();
     return this.rendezVous().filter(r => new Date(r.dateDebut).toDateString() === today).length;
   });
+  rdvCetteSemaine = computed(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now); monday.setDate(now.getDate() + diffToMonday); monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
+    return this.rendezVous().filter(r => { const d = new Date(r.dateDebut); return d >= monday && d <= sunday; }).length;
+  });
+  rdvCeMois = computed(() => {
+    const now = new Date();
+    return this.rendezVous().filter(r => {
+      const d = new Date(r.dateDebut);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+  });
   rdvEnAttente = computed(() => this.rendezVous().filter(r => r.statut === StatutRendezVous.EN_ATTENTE).length);
-  rdvConfirme  = computed(() => this.rendezVous().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
+  rdvConfirme  = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
+  rdvAnnule    = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.ANNULE).length);
+  rdvTermine   = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.TERMINE).length);
   rdvMariage   = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE).length);
 
   constructor(
@@ -204,7 +248,7 @@ export class EmployeeDashboardComponent implements OnInit {
   }
 
   setFilterStatut(s: StatutRendezVous | 'ALL') { this.filterStatut.set(s); }
-  setFilterTypeClient(t: TypeClient | 'ALL')    { this.filterTypeClient.set(t); }
+  setFilterTypeClient(t: TypeClient | 'ALL' | 'MARIAGE_SERVICES') { this.filterTypeClient.set(t); }
 
   getMyServices(rdv: RendezVousResponse): ServiceRendezVousDto[] {
     const myId = this.profile()?.id;
@@ -216,7 +260,7 @@ export class EmployeeDashboardComponent implements OnInit {
   getStatutLabel(s: StatutRendezVous): string {
     const m: Record<StatutRendezVous, string> = {
       EN_ATTENTE: 'En attente', CONFIRME: 'Confirmé',
-      ANNULE: 'Annulé', TERMINE: 'Terminé'
+      EN_COURS: 'En cours', ANNULE: 'Annulé', TERMINE: 'Terminé'
     };
     return m[s];
   }
@@ -224,7 +268,7 @@ export class EmployeeDashboardComponent implements OnInit {
   getStatutClass(s: StatutRendezVous): string {
     const m: Record<StatutRendezVous, string> = {
       EN_ATTENTE: 'en-attente', CONFIRME: 'confirme',
-      ANNULE: 'annule', TERMINE: 'termine'
+      EN_COURS: 'en-cours', ANNULE: 'annule', TERMINE: 'termine'
     };
     return m[s];
   }
@@ -266,12 +310,24 @@ export class EmployeeDashboardComponent implements OnInit {
     return (u.prenom.charAt(0) + u.nom.charAt(0)).toUpperCase();
   }
 
+  commencerRdv(rdv: RendezVousResponse) {
+    this.rendezVousService.commencerRendezVous(rdv.id).subscribe({
+      next: (updated) => {
+        this.rendezVous.update(list => list.map(r => r.id === updated.id ? updated : r));
+        this.success.set('Rendez-vous démarré.');
+        setTimeout(() => this.success.set(''), 3000);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.message ?? 'Erreur lors du démarrage du rendez-vous.');
+        setTimeout(() => this.error.set(''), 4000);
+      }
+    });
+  }
+
   terminerRdv(rdv: RendezVousResponse) {
-    if (!confirm(`Confirmer la fin du rendez-vous de ${rdv.prenomClient} ${rdv.nomClient} ?`)) return;
     this.rendezVousService.terminerRendezVous(rdv.id).subscribe({
       next: (updated) => {
         this.rendezVous.update(list => list.map(r => r.id === updated.id ? updated : r));
-        if (this.selectedRdv()?.id === updated.id) this.selectedRdv.set(updated);
         this.success.set('Rendez-vous marqué comme terminé.');
         setTimeout(() => this.success.set(''), 3000);
       },
@@ -280,16 +336,6 @@ export class EmployeeDashboardComponent implements OnInit {
         setTimeout(() => this.error.set(''), 4000);
       }
     });
-  }
-
-  openRdvDetail(rdv: RendezVousResponse) {
-    this.selectedRdv.set(rdv);
-    this.showDetailModal.set(true);
-  }
-
-  closeRdvDetail() {
-    this.showDetailModal.set(false);
-    this.selectedRdv.set(null);
   }
 
   logout() { this.authService.logout(); }

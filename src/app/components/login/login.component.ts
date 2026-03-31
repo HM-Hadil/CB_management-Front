@@ -47,8 +47,10 @@ export class LoginComponent {
     this.loading.set(true);
     this.error.set('');
 
+    const trimmedEmail = this.credentials.email.trim().toLowerCase();
+
     this.authService.login({
-      email: this.credentials.email,
+      email: trimmedEmail,
       password: this.credentials.password
     }).subscribe({
       next: (response) => {

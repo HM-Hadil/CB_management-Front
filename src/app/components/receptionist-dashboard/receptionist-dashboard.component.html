@@ -46,6 +46,13 @@
         <i class="pi pi-users"></i>
         <span>Présence</span>
       </button>
+    <!-- <button class="nav-item" [class.active]="activeTab() === 'avis'" (click)="setTab('avis')">
+        <i class="pi pi-star"></i>
+        <span>Retour Clientes</span>
+        @if (avis().length > 0) {
+          <span class="nav-badge nav-badge--gold">{{ avis().length }}</span>
+        }
+      </button>--> 
 
     </nav>
 
@@ -77,6 +84,7 @@
           @else if (activeTab() === 'offres') { Clientes & Offres }
           @else if (activeTab() === 'stock') { Gestion du Stock }
           @else if (activeTab() === 'presence') { Gestion de présence }
+          @else if (activeTab() === 'avis') { Retour Clientes }
           @else { Gestion des Rendez-vous }
         </h1>
         <p class="page-sub">
@@ -286,10 +294,29 @@
               <span class="stat-label">Total RDV</span>
             </div>
           </div>
+          <div class="stat-card stat-card--pink stat-card--clickable"
+               [class.stat-card--selected]="rdvTypeFilter() === TypeClient.MARIAGE"
+               (click)="rdvTypeFilter.set(TypeClient.MARIAGE)" title="Voir les RDV Mariée">
+            <div class="stat-icon"><i class="pi pi-heart"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ rdvMariageCount() }}</span>
+              <span class="stat-label">RDV Mariée</span>
+            </div>
+          </div>
+          <div class="stat-card stat-card--mariage-svc stat-card--clickable"
+               [class.stat-card--selected]="rdvTypeFilter() === 'MARIAGE_SERVICES'"
+               (click)="rdvTypeFilter.set('MARIAGE_SERVICES')" title="Voir les RDV Mariée avec services">
+            <div class="stat-icon"><i class="pi pi-star"></i></div>
+            <div class="stat-info">
+              <span class="stat-value">{{ rdvMariageAvecServicesCount() }}</span>
+              <span class="stat-label">Mariée + Services</span>
+            </div>
+          </div>
         </div>
 
         <!-- Controls -->
         <div class="rdv-controls">
+          <div class="rdv-controls__top">
           <div class="search-box">
             <i class="pi pi-search"></i>
             <input
@@ -318,6 +345,7 @@
               </button>
             }
           </div>
+          </div><!-- /.rdv-controls__top -->
           <div class="rdv-controls__right">
             @if (rdvSearchQuery() || rdvFilterDate()) {
               <button type="button" class="btn-clear-filters" (click)="rdvSearchQuery.set(''); rdvFilterDate.set('')" title="Effacer les filtres">
@@ -415,12 +443,17 @@
                         </div>
                       </td>
 
-                      <!-- Date -->
-                      <td data-label="Date">
-                        <span class="date-cell">
-                          <i class="pi pi-calendar"></i>
-                          {{ formatDate(rdv.dateDebut) }}
-                        </span>
+                      <!-- Date par service -->
+                      <td data-label="Date & Heure">
+                        <div class="services-list">
+                          @for (srv of rdv.services; track srv.id) {
+                            <div class="service-item">
+                              <span class="service-date">
+                                <i class="pi pi-calendar"></i> {{ formatDate(srv.datePrevue ?? rdv.dateDebut) }}
+                              </span>
+                            </div>
+                          }
+                        </div>
                       </td>
 
                       <!-- Durée -->
@@ -466,6 +499,18 @@
                               title="Annuler">
                               <i class="pi pi-times"></i>
                             </button>
+                          }
+                          @if (rdv.statut === StatutRendezVous.TERMINE) {
+                            @if (rdvHasAvis(rdv.id)) {
+                              <button class="action-btn action-btn--avis-done" title="Avis déjà ajouté" disabled>
+                                <i class="pi pi-star-fill"></i>
+                              </button>
+                            } @else {
+                              <button class="action-btn action-btn--avis"
+                                (click)="openAddAvisModal(rdv)" title="Ajouter un avis">
+                                <i class="pi pi-star"></i>
+                              </button>
+                            }
                           }
                           <button class="action-btn action-btn--delete"
                             (click)="confirmDelete(rdv.id)" title="Supprimer">
@@ -668,6 +713,18 @@
                               <i class="pi pi-times"></i>
                             </button>
                           }
+                          @if (rdv.statut === StatutRendezVous.TERMINE) {
+                            @if (rdvHasAvis(rdv.id)) {
+                              <button class="action-btn action-btn--avis-done" title="Avis déjà ajouté" disabled>
+                                <i class="pi pi-star-fill"></i>
+                              </button>
+                            } @else {
+                              <button class="action-btn action-btn--avis"
+                                (click)="openAddAvisModal(rdv)" title="Ajouter un avis">
+                                <i class="pi pi-star"></i>
+                              </button>
+                            }
+                          }
                           <button class="action-btn action-btn--delete"
                             (click)="confirmDelete(rdv.id)" title="Supprimer">
                             <i class="pi pi-trash"></i>
@@ -784,8 +841,26 @@
                     </span>
                   </div>
 
+                  @if (c.offresUtiliseesDetails.length > 0) {
+                    <div class="offres-history">
+                      <span class="offres-history__title">
+                        <i class="pi pi-history"></i> Offres utilisées ce mois
+                      </span>
+                      @for (o of c.offresUtiliseesDetails; track o.dateUtilisation) {
+                        <div class="offre-history-item"
+                             [class.offre-history-item--gratuit]="o.typeOffre === 'SERVICE_GRATUIT'"
+                             [class.offre-history-item--promo]="o.typeOffre === 'PROMO_PROCHAIN_SERVICE'">
+                          <i class="pi" [class.pi-star-fill]="o.typeOffre === 'SERVICE_GRATUIT'"
+                                        [class.pi-tag]="o.typeOffre === 'PROMO_PROCHAIN_SERVICE'"></i>
+                          <span>{{ o.typeOffre === 'SERVICE_GRATUIT' ? 'Service gratuit' : 'Promo prochain service' }}</span>
+                          <span class="offre-history-item__date">{{ o.dateUtilisation | date:'dd/MM HH:mm' }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
+
                   @if (c.offresDisponibles > 0) {
-                    <button class="btn-utiliser" (click)="utiliserOffreFidelite(c.telephoneClient)">
+                    <button class="btn-utiliser" (click)="ouvrirModalOffre(c)">
                       <i class="pi pi-check-circle"></i> Utiliser une offre
                     </button>
                   }
@@ -794,6 +869,36 @@
             </div>
           }
 
+        </div>
+      }
+
+      <!-- ══ MODAL CHOIX OFFRE ══════════════════════════════════════ -->
+      @if (offreModalCliente()) {
+        <div class="modal-overlay" (click)="fermerModalOffre()">
+          <div class="offre-modal" (click)="$event.stopPropagation()">
+            <div class="offre-modal__header">
+              <i class="pi pi-gift"></i>
+              <h3>Choisir le type d'offre</h3>
+              <button class="offre-modal__close" (click)="fermerModalOffre()">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <p class="offre-modal__cliente">
+              Cliente : <strong>{{ offreModalCliente()!.prenomClient }} {{ offreModalCliente()!.nomClient }}</strong>
+            </p>
+            <div class="offre-modal__choices">
+              <button class="offre-choice offre-choice--gratuit" (click)="confirmerUtiliserOffre('SERVICE_GRATUIT')">
+                <i class="pi pi-star-fill"></i>
+                <span class="offre-choice__title">Service gratuit</span>
+                <span class="offre-choice__desc">La cliente bénéficie d'un service entièrement gratuit</span>
+              </button>
+              <button class="offre-choice offre-choice--promo" (click)="confirmerUtiliserOffre('PROMO_PROCHAIN_SERVICE')">
+                <i class="pi pi-tag"></i>
+                <span class="offre-choice__title">Promo prochain service</span>
+                <span class="offre-choice__desc">Réduction appliquée sur le prochain service de la cliente</span>
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -953,25 +1058,20 @@
             </div>
           </div>
 
-          <!-- Calendar card -->
+          <!-- Date picker -->
           <div class="pres-cal-card">
             <div class="pres-cal-card__header">
               <i class="pi pi-calendar"></i>
-              <span>Semaine du {{ presenceWeekDays()[0]?.day }} au {{ presenceWeekDays()[6]?.day }}</span>
+              <span>Choisir une date</span>
               @if (isToday(presenceSelectedDate())) {
                 <span class="pres-cal-card__today-pill">Aujourd'hui</span>
               }
             </div>
-            <div class="pres-cal-days">
-              @for (d of presenceWeekDays(); track d.iso) {
-                <button class="pres-cal-day"
-                  [class.active]="presenceSelectedDate() === d.iso"
-                  [class.today]="isToday(d.iso)"
-                  (click)="selectPresenceDate(d.iso)">
-                  <span class="pres-cal-day__name">{{ d.label }}</span>
-                  <span class="pres-cal-day__num">{{ d.day }}</span>
-                </button>
-              }
+            <div class="pres-date-picker">
+              <input type="date"
+                [ngModel]="presenceSelectedDate()"
+                (ngModelChange)="selectPresenceDate($event)"
+                class="modal-input pres-date-input" />
             </div>
           </div>
 
@@ -1044,7 +1144,7 @@
                               }
                               @if (p.heuresTravaillees != null) {
                                 <span class="pres-chip pres-chip--dur">
-                                  <i class="pi pi-hourglass"></i> {{ p.heuresTravaillees }}h
+                                  <i class="pi pi-hourglass"></i> {{ formatHeuresTravaillees(p.heuresTravaillees!) }}
                                 </span>
                               }
                             </div>
@@ -1069,7 +1169,7 @@
                               [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
                               (click)="marquerDepart(p.employeeId)">
                               @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
-                              @else { <i class="pi pi-sign-out"></i> } Départ
+                              @else { <i class="pi pi-sign-out"></i> } Commencer
                             </button>
                           } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && p.heureDepart) {
                             <button class="pres-btn pres-btn--terminer"
@@ -1119,7 +1219,7 @@
                           <span class="pres-chip pres-chip--out"><i class="pi pi-sign-out"></i> {{ p.heureDepart }}</span>
                         }
                         @if (p.heuresTravaillees != null) {
-                          <span class="pres-chip pres-chip--dur"><i class="pi pi-hourglass"></i> {{ p.heuresTravaillees }}h travaillées</span>
+                          <span class="pres-chip pres-chip--dur"><i class="pi pi-hourglass"></i> {{ formatHeuresTravaillees(p.heuresTravaillees!) }} travaillées</span>
                         }
                       </div>
                     } @else {
@@ -1139,7 +1239,7 @@
                           [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
                           (click)="marquerDepart(p.employeeId)">
                           @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
-                          @else { <i class="pi pi-sign-out"></i> } Marquer départ
+                          @else { <i class="pi pi-sign-out"></i> } Commencer
                         </button>
                       } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && p.heureDepart) {
                         <button class="pres-btn pres-btn--terminer pres-btn--full"
@@ -1162,9 +1262,221 @@
         </section>
       }
 
+      <!-- ══ AVIS CLIENTES TAB ══════════════════════════════════════ -->
+      @if (activeTab() === 'avis') {
+        <section class="avis-section">
+
+          <!-- Stats -->
+          <div class="avis-stats">
+            <div class="avis-stat avis-stat--gold">
+              <div class="avis-stat__left">
+                <span class="avis-stat__value">{{ avis().length }}</span>
+                <span class="avis-stat__label">Total avis</span>
+              </div>
+              <div class="avis-stat__icon"><i class="pi pi-comments"></i></div>
+            </div>
+            <div class="avis-stat avis-stat--green">
+              <div class="avis-stat__left">
+                <span class="avis-stat__value">{{ noteMoyenne() }}<small>/5</small></span>
+                <span class="avis-stat__label">Note moyenne</span>
+              </div>
+              <div class="avis-stat__icon"><i class="pi pi-star-fill"></i></div>
+            </div>
+            <div class="avis-stat avis-stat--purple">
+              <div class="avis-stat__left">
+                <span class="avis-stat__value">{{ avisParNote()[5] || 0 }}</span>
+                <span class="avis-stat__label">Avis 5 étoiles</span>
+              </div>
+              <div class="avis-stat__icon"><i class="pi pi-thumbs-up"></i></div>
+            </div>
+            <div class="avis-stat avis-stat--red">
+              <div class="avis-stat__left">
+                <span class="avis-stat__value">{{ (avisParNote()[1] || 0) + (avisParNote()[2] || 0) }}</span>
+                <span class="avis-stat__label">Avis négatifs</span>
+              </div>
+              <div class="avis-stat__icon"><i class="pi pi-thumbs-down"></i></div>
+            </div>
+          </div>
+
+          <!-- Distribution des notes -->
+          @if (avis().length > 0) {
+            <div class="avis-distribution-card">
+              <div class="avis-distribution-card__title">
+                <i class="pi pi-chart-bar"></i> Distribution des notes
+              </div>
+              <div class="avis-distribution">
+                @for (n of [5,4,3,2,1]; track n) {
+                  <div class="avis-dist-row">
+                    <span class="avis-dist-label">{{ n }} <i class="pi pi-star-fill avis-dist-star"></i></span>
+                    <div class="avis-dist-bar-bg">
+                      <div class="avis-dist-bar"
+                        [style.width.%]="avis().length > 0 ? ((avisParNote()[n] || 0) / avis().length) * 100 : 0"
+                        [class]="n >= 4 ? 'avis-dist-bar--good' : n === 3 ? 'avis-dist-bar--medium' : 'avis-dist-bar--bad'">
+                      </div>
+                    </div>
+                    <span class="avis-dist-count">{{ avisParNote()[n] || 0 }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Filtres & Recherche -->
+          <div class="avis-toolbar">
+            <div class="avis-search-wrap">
+              <i class="pi pi-search avis-search-icon"></i>
+              <input type="text" class="avis-search-input" placeholder="Rechercher une cliente..."
+                [ngModel]="avisSearchQuery()" (ngModelChange)="avisSearchQuery.set($event)" />
+            </div>
+            <div class="avis-filter-notes">
+              <button class="avis-filter-btn" [class.active]="avisNoteFilter() === 0"
+                (click)="avisNoteFilter.set(0)">Tous</button>
+              @for (n of [5,4,3,2,1]; track n) {
+                <button class="avis-filter-btn avis-filter-btn--note"
+                  [class.active]="avisNoteFilter() === n"
+                  (click)="avisNoteFilter.set(n)">
+                  {{ n }} <i class="pi pi-star-fill"></i>
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Liste des avis -->
+          @if (avisLoading()) {
+            <div class="avis-loader">
+              <i class="pi pi-spin pi-spinner"></i>
+              <span>Chargement des avis...</span>
+            </div>
+          } @else if (filteredAvis().length === 0) {
+            <div class="avis-empty">
+              <i class="pi pi-star"></i>
+              <p>Aucun avis trouvé.</p>
+              <small>Les avis peuvent être ajoutés depuis les rendez-vous terminés.</small>
+            </div>
+          } @else {
+            <div class="avis-list">
+              @for (a of filteredAvis(); track a.id) {
+                <div class="avis-card" [class]="getNoteClass(a.note)">
+                  <div class="avis-card__header">
+                    <div class="avis-card__client">
+                      <div class="avis-card__avatar">{{ getAvisClientInitials(a) }}</div>
+                      <div class="avis-card__info">
+                        <strong>{{ a.prenomClient }} {{ a.nomClient }}</strong>
+                        @if (a.telephoneClient) {
+                          <span class="avis-card__phone">
+                            <i class="pi pi-phone"></i> {{ a.telephoneClient }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                    <div class="avis-card__right">
+                      <div class="avis-stars">
+                        @for (s of getStarsArray(a.note); track s) {
+                          <i class="pi" [class.pi-star-fill]="s <= a.note" [class.pi-star]="s > a.note"></i>
+                        }
+                      </div>
+                      <span class="avis-note-label">{{ getNoteLabel(a.note) }}</span>
+                      <span class="avis-card__date">{{ formatAvisDate(a.createdAt) }}</span>
+                    </div>
+                  </div>
+
+                  @if (a.commentaire) {
+                    <div class="avis-card__comment">
+                      <i class="pi pi-quote-right"></i>
+                      <p>{{ a.commentaire }}</p>
+                    </div>
+                  }
+
+                  <div class="avis-card__footer">
+                    <span class="avis-rdv-ref">RDV #{{ a.rendezVousId }}</span>
+                    @if (avisDeleteConfirmId() === a.id) {
+                      <span class="delete-confirm-inline">
+                        Supprimer ?
+                        <button class="btn-confirm-yes" (click)="deleteAvis(a.id)">Oui</button>
+                        <button class="btn-confirm-no" (click)="cancelDeleteAvis()">Non</button>
+                      </span>
+                    } @else {
+                      <button class="action-btn action-btn--delete" (click)="confirmDeleteAvis(a.id)" title="Supprimer">
+                        <i class="pi pi-trash"></i>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+        </section>
+      }
+
     }
   </main>
 </div>
+
+<!-- ══ MODAL AVIS CLIENTE ═══════════════════════════════════════ -->
+@if (avisModalRdv()) {
+  <div class="modal-overlay" (click)="closeAvisModal()">
+    <div class="avis-modal" (click)="$event.stopPropagation()">
+
+      <div class="avis-modal__header">
+        <div class="avis-modal__icon">
+          <i class="pi pi-star"></i>
+        </div>
+        <div>
+          <h2>Avis cliente</h2>
+          <p>{{ avisModalRdv()!.prenomClient }} {{ avisModalRdv()!.nomClient }}</p>
+        </div>
+        <button class="rdv-modal__close" (click)="closeAvisModal()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="avis-modal__body">
+
+        <!-- Note étoiles -->
+        <div class="modal-form-group">
+          <label class="modal-label">Note *</label>
+          <div class="star-picker">
+            @for (s of getStarsArray(5); track s) {
+              <button class="star-btn"
+                [class.star-btn--active]="s <= avisForm.note"
+                (click)="avisForm.note = s" type="button">
+                <i class="pi" [class.pi-star-fill]="s <= avisForm.note" [class.pi-star]="s > avisForm.note"></i>
+              </button>
+            }
+            <span class="star-label">{{ getNoteLabel(avisForm.note) }}</span>
+          </div>
+        </div>
+
+        <!-- Commentaire -->
+        <div class="modal-form-group">
+          <label class="modal-label">Commentaire <span class="modal-optional">(optionnel)</span></label>
+          <textarea class="modal-input modal-textarea" rows="4"
+            placeholder="Décrivez l'expérience de la cliente..."
+            [(ngModel)]="avisForm.commentaire">
+          </textarea>
+        </div>
+
+        @if (avisModalError()) {
+          <div class="modal-error">
+            <i class="pi pi-exclamation-circle"></i> {{ avisModalError() }}
+          </div>
+        }
+
+      </div>
+
+      <div class="avis-modal__footer">
+        <button class="btn-secondary" (click)="closeAvisModal()">Annuler</button>
+        <button class="btn-primary" (click)="submitAvis()" [disabled]="avisModalLoading()">
+          @if (avisModalLoading()) { <i class="pi pi-spin pi-spinner"></i> }
+          @else { <i class="pi pi-check"></i> }
+          Enregistrer l'avis
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
 
 <!-- ══ MODAL RENDEZ-VOUS ════════════════════════════════════════ -->
 @if (showRdvModal()) {
@@ -1206,12 +1518,14 @@
             <div class="modal-form-group">
               <label>Prénom *</label>
               <input type="text" [(ngModel)]="rdvForm.prenomClient"
-                class="modal-input" placeholder="Prénom du client" />
+                class="modal-input" placeholder="Prénom du client"
+                (input)="filterAlpha($event, 'prenomClient')" />
             </div>
             <div class="modal-form-group">
               <label>Nom *</label>
               <input type="text" [(ngModel)]="rdvForm.nomClient"
-                class="modal-input" placeholder="Nom du client" />
+                class="modal-input" placeholder="Nom du client"
+                (input)="filterAlpha($event, 'nomClient')" />
             </div>
           </div>
           <div class="modal-form-grid">
@@ -1296,7 +1610,27 @@
                     </div>
                     <div class="modal-form-group">
                       <label>Heure *</label>
-                      <input type="time" [(ngModel)]="srv.heure" class="modal-input" />
+                      <div class="time-picker-wrapper">
+                        <button type="button" class="time-picker-btn modal-input"
+                          (click)="toggleTimePicker('mariee-' + i)">
+                          <i class="pi pi-clock"></i>
+                          <span>{{ srv.heure || 'Choisir l\'heure' }}</span>
+                          <i class="pi pi-chevron-down time-picker-chevron"
+                            [class.rotated]="openTimePickerKey() === 'mariee-' + i"></i>
+                        </button>
+                        @if (openTimePickerKey() === 'mariee-' + i) {
+                          <div class="time-picker-backdrop" (click)="closeTimePicker()"></div>
+                          <div class="time-picker-grid">
+                            @for (slot of TIME_SLOTS; track slot) {
+                              <button type="button" class="time-slot"
+                                [class.time-slot--selected]="srv.heure === slot"
+                                (click)="selectMarieeSrvTime(i, slot)">
+                                {{ slot }}
+                              </button>
+                            }
+                          </div>
+                        }
+                      </div>
                     </div>
                   </div>
                   <div class="modal-form-group">
@@ -1361,43 +1695,68 @@
                         [min]="getTodayDate()" (ngModelChange)="onNormaleServiceMarieeDateChange(i)" />
                     </div>
                     <div class="modal-form-group">
-                      <label>Heure *</label>
-                      <input type="time" [(ngModel)]="srv.heure" class="modal-input"
-                        (ngModelChange)="onNormaleServiceMarieeDateChange(i)" />
-                    </div>
-                  </div>
-                  <div class="modal-form-grid">
-                    <div class="modal-form-group">
                       <label>Durée (min) *</label>
                       <input type="number" [(ngModel)]="srv.dureeMinutes" class="modal-input"
-                        min="1" max="480" (ngModelChange)="onNormaleServiceMarieeDateChange(i)" />
+                        min="1" max="480" />
                     </div>
-                    <div class="modal-form-group">
-                      <label>Employée *</label>
-                      @if (srv.loadingEmployees) {
-                        <div class="loading-employees">
-                          <i class="pi pi-spin pi-spinner"></i> Recherche...
-                        </div>
-                      } @else if (!srv.typeService || !srv.date || !srv.heure || srv.dureeMinutes < 1) {
-                        <div class="employee-hint">
-                          <i class="pi pi-info-circle"></i> Renseignez service, date, heure et durée
-                        </div>
-                      } @else if (srv.availableEmployees.length === 0) {
-                        <div class="no-employees">
-                          <i class="pi pi-exclamation-circle"></i> Aucune disponible
-                        </div>
-                      } @else {
-                        <select [(ngModel)]="srv.employeeId" class="modal-input modal-select">
-                          <option [ngValue]="null">Sélectionner...</option>
-                          @for (emp of srv.availableEmployees; track emp.id) {
-                            <option [ngValue]="emp.id">
-                              {{ emp.prenom }} {{ emp.nom }}
-                              @if (emp.specialite) { — {{ emp.specialite }} }
-                            </option>
-                          }
-                        </select>
-                      }
-                    </div>
+                  </div>
+                  <div class="modal-form-group">
+                    <label>Employée *</label>
+                    @if (srv.loadingEmployees) {
+                      <div class="loading-employees">
+                        <i class="pi pi-spin pi-spinner"></i> Recherche...
+                      </div>
+                    } @else if (!srv.typeService || !srv.date) {
+                      <div class="employee-hint">
+                        <i class="pi pi-info-circle"></i> Renseignez le service et la date
+                      </div>
+                    } @else if (srv.availableEmployees.length === 0) {
+                      <div class="no-employees">
+                        <i class="pi pi-exclamation-circle"></i> Aucune disponible
+                      </div>
+                    } @else {
+                      <select [(ngModel)]="srv.employeeId" class="modal-input modal-select">
+                        <option [ngValue]="null">Sélectionner...</option>
+                        @for (emp of srv.availableEmployees; track emp.id) {
+                          <option [ngValue]="emp.id">
+                            {{ emp.prenom }} {{ emp.nom }}
+                            @if (emp.specialites && emp.specialites.length > 0) { — {{ emp.specialites.join(', ') }} }
+                          </option>
+                        }
+                      </select>
+                    }
+                  </div>
+                  <div class="modal-form-group">
+                    <label>Heure *</label>
+                    @if (!srv.employeeId) {
+                      <div class="employee-hint">
+                        <i class="pi pi-info-circle"></i> Sélectionnez d'abord une employée
+                      </div>
+                    } @else {
+                      <div class="time-picker-wrapper">
+                        <button type="button" class="time-picker-btn modal-input"
+                          (click)="toggleTimePicker('mariee-normale-' + i)">
+                          <i class="pi pi-clock"></i>
+                          <span>{{ srv.heure || 'Choisir l\'heure' }}</span>
+                          <i class="pi pi-chevron-down time-picker-chevron"
+                            [class.rotated]="openTimePickerKey() === 'mariee-normale-' + i"></i>
+                        </button>
+                        @if (openTimePickerKey() === 'mariee-normale-' + i) {
+                          <div class="time-picker-backdrop" (click)="closeTimePicker()"></div>
+                          <div class="time-picker-grid">
+                            @for (slot of TIME_SLOTS; track slot) {
+                              <button type="button" class="time-slot"
+                                [class.time-slot--selected]="srv.heure === slot"
+                                [class.time-slot--blocked]="isSlotBooked(srv.employeeId, srv.date, slot)"
+                                [disabled]="isSlotBooked(srv.employeeId, srv.date, slot)"
+                                (click)="selectNormaleMarieeSrvTime(i, slot)">
+                                {{ slot }}
+                              </button>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
                   </div>
                 </div>
               }
@@ -1407,32 +1766,11 @@
 
         } @else {
 
-          <!-- ── Mode Normal : planification + services ── -->
-          <div class="modal-section">
-            <div class="modal-section__title">
-              <i class="pi pi-calendar"></i> Planification
-            </div>
-            <div class="modal-form-grid">
-              <div class="modal-form-group">
-                <label>Date et heure de début *</label>
-                <input type="datetime-local" [(ngModel)]="rdvForm.dateDebut"
-                  class="modal-input" [min]="getTodayMin()" (change)="onDateOrHoursChange()" />
-              </div>
-              <div class="modal-form-group">
-                <label>Durée (minutes) *</label>
-                <div class="input-with-unit">
-                  <input type="number" [(ngModel)]="rdvForm.dureeMinutes"
-                    class="modal-input" min="1" max="480" (change)="onDateOrHoursChange()" />
-                  <span class="unit-label">min</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
+          <!-- ── Mode Normal : services avec date/heure individuelles ── -->
           <div class="modal-section">
             <div class="modal-section__title">
               <i class="pi pi-star"></i> Services
-              <span class="section-hint">Sélectionnez un service puis un employé disponible</span>
+              <span class="section-hint">Choisissez un service, la date, l'employée puis l'heure disponible</span>
             </div>
 
             @for (srv of rdvForm.services; track $index; let i = $index) {
@@ -1460,55 +1798,38 @@
                         class="modal-input modal-select"
                         (ngModelChange)="onTypeServiceChange(i)">
                         <option value="">Sélectionner un service...</option>
-                        <optgroup label="Soins">
-                          <option value="SOIN_VISAGE">Soin visage</option>
-                          <option value="SOIN_PIED">Soin pied</option>
-                          <option value="SOIN_MAIN">Soin main</option>
-                          <option value="HYDRAFACIALE">Hydrafaciale</option>
-                        </optgroup>
-                        <optgroup label="Coiffeuse">
-                          <option value="COUPE">Coupe</option>
-                          <option value="PROTEINE">Protéine</option>
-                          <option value="COLORATION_SIMPLE">Coloration simple</option>
-                          <option value="BALAYAGE">Balayage</option>
-                          <option value="SOIN_CAPILLAIRE">Soin capillaire</option>
-                          <option value="BRUSHING">Brushing</option>
-                        </optgroup>
-                        <optgroup label="Esthéticienne">
-                          <option value="EPILATION_VISAGE">Épilation visage</option>
-                          <option value="EPILATION_MOUSTACHE">Épilation moustache</option>
-                          <option value="EPILATION_SOURCILS">Épilation sourcils</option>
-                        </optgroup>
-                        <optgroup label="Onglerie">
-                          <option value="VERNIS_PERMANENT_MAIN">Vernis permanent (main)</option>
-                          <option value="VERNIS_PERMANENT_PIED">Vernis permanent (pied)</option>
-                          <option value="GEL_SUR_ONGLE_NATURELLE">Gel ongle naturelle</option>
-                          <option value="GEL_CAPSULE">Gel capsule</option>
-                          <option value="DEPOSE_VERNIS">Dépose vernis</option>
-                        </optgroup>
-                        <optgroup label="Maquillage">
-                          <option value="MAQUILLAGE">Maquillage</option>
-                        </optgroup>
                       </select>
                     }
                   </div>
 
                   <div class="modal-form-group">
-                    <label>Employée disponible <span class="required-star">*</span></label>
+                    <label>Date *</label>
+                    <input type="date" [(ngModel)]="srv.date" class="modal-input"
+                      [min]="getTodayDate()" (ngModelChange)="onNormalServiceDateChange(i)" />
+                  </div>
+
+                  <div class="modal-form-group">
+                    <label>Durée (min) *</label>
+                    <input type="number" [(ngModel)]="srv.dureeMinutes" class="modal-input"
+                      min="1" max="480" />
+                  </div>
+
+                  <div class="modal-form-group">
+                    <label>Employée *</label>
                     @if (srv.loadingEmployees) {
                       <div class="loading-employees">
                         <i class="pi pi-spin pi-spinner"></i>
-                        <span>Recherche des disponibilités...</span>
+                        <span>Chargement...</span>
                       </div>
-                    } @else if (!srv.typeService || !rdvForm.dateDebut || rdvForm.dureeMinutes < 1) {
+                    } @else if (!srv.typeService || !srv.date) {
                       <div class="employee-hint">
                         <i class="pi pi-info-circle"></i>
-                        Sélectionnez un service, une date et une durée
+                        Renseignez le service et la date
                       </div>
                     } @else if (srv.availableEmployees.length === 0) {
                       <div class="no-employees">
                         <i class="pi pi-exclamation-circle"></i>
-                        Aucune employée disponible pour ce créneau
+                        Aucune employée disponible
                       </div>
                     } @else {
                       <select [(ngModel)]="srv.employeeId" class="modal-input modal-select">
@@ -1516,10 +1837,44 @@
                         @for (emp of srv.availableEmployees; track emp.id) {
                           <option [ngValue]="emp.id">
                             {{ emp.prenom }} {{ emp.nom }}
-                            @if (emp.specialite) { — {{ emp.specialite }} }
+                            @if (emp.specialites && emp.specialites.length > 0) { — {{ emp.specialites.join(', ') }} }
                           </option>
                         }
                       </select>
+                    }
+                  </div>
+
+                  <div class="modal-form-group">
+                    <label>Heure *</label>
+                    @if (!srv.employeeId) {
+                      <div class="employee-hint">
+                        <i class="pi pi-info-circle"></i>
+                        Sélectionnez d'abord une employée
+                      </div>
+                    } @else {
+                      <div class="time-picker-wrapper">
+                        <button type="button" class="time-picker-btn modal-input"
+                          (click)="toggleTimePicker('normal-' + i)">
+                          <i class="pi pi-clock"></i>
+                          <span>{{ srv.heure || 'Choisir l\'heure' }}</span>
+                          <i class="pi pi-chevron-down time-picker-chevron"
+                            [class.rotated]="openTimePickerKey() === 'normal-' + i"></i>
+                        </button>
+                        @if (openTimePickerKey() === 'normal-' + i) {
+                          <div class="time-picker-backdrop" (click)="closeTimePicker()"></div>
+                          <div class="time-picker-grid">
+                            @for (slot of TIME_SLOTS; track slot) {
+                              <button type="button" class="time-slot"
+                                [class.time-slot--selected]="srv.heure === slot"
+                                [class.time-slot--blocked]="isSlotBooked(srv.employeeId, srv.date, slot)"
+                                [disabled]="isSlotBooked(srv.employeeId, srv.date, slot)"
+                                (click)="selectNormalServiceTime(i, slot)">
+                                {{ slot }}
+                              </button>
+                            }
+                          </div>
+                        }
+                      </div>
                     }
                   </div>
                 </div>
@@ -1630,6 +1985,12 @@
             <label>Prix unitaire (DH) *</label>
             <input type="number" [(ngModel)]="stockForm.prixUnitaire" class="modal-input" min="0" step="0.01"
               placeholder="0.00" />
+          </div>
+
+          <div class="modal-form-group modal-form-group--full">
+            <label>Nom du fournisseur</label>
+            <input type="text" [(ngModel)]="stockForm.nomFournisseur" class="modal-input"
+              placeholder="Ex : L'Oréal, Kerastase…" />
           </div>
         </div>
 

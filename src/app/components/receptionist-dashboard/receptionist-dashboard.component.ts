@@ -7,6 +7,7 @@ import { RendezVousService } from '../../services/rendez-vous.service';
 import { FideliteService } from '../../services/fidelite.service';
 import { PresenceService } from '../../services/presence.service';
 import { StockService } from '../../services/stock.service';
+import { AvisService } from '../../services/avis.service';
 import {
   UserDto,
   UpdateProfileRequest,
@@ -27,13 +28,19 @@ import {
   CategorieStock,
   CATEGORIE_STOCK_LABELS,
   ProduitStockDto,
-  ProduitStockRequest
+  ProduitStockRequest,
+  TypeOffre,
+  AvisClienteDto,
+  AvisClienteRequest
 } from '../../models/auth.models';
 
-type Tab = 'profile' | 'password' | 'rendez-vous' | 'rendez-vous-mariees' | 'offres' | 'presence' | 'stock';
+type Tab = 'profile' | 'password' | 'rendez-vous' | 'rendez-vous-mariees' | 'offres' | 'presence' | 'stock' | 'avis';
 
 export interface ServiceFormRow {
   typeService: TypeService | '';
+  date: string;          // YYYY-MM-DD
+  heure: string;         // HH:mm
+  dureeMinutes: number;
   employeeId: number | null;
   availableEmployees: UserDto[];
   loadingEmployees: boolean;
@@ -103,6 +110,9 @@ export class ReceptionistDashboardComponent implements OnInit {
   rdvTypeFilter = signal<TypeClient | 'ALL' | 'MARIAGE_SERVICES'>('ALL');
   marieeSubFilter = signal<'ALL' | 'PURE' | 'SERVICES'>('ALL');
 
+  // ── Time slots (grille horaire) ───────────────────────────────
+  // (removed — dates are now per-service row)
+
   // ── Sidebar mobile ────────────────────────────────────────────
   sidebarOpen = signal(false);
 
@@ -110,6 +120,7 @@ export class ReceptionistDashboardComponent implements OnInit {
   clientesFidelite = signal<ClienteFideliteDto[]>([]);
   fideliteLoading = signal(false);
   fideliteSearchQuery = signal('');
+  offreModalCliente = signal<ClienteFideliteDto | null>(null);
 
   // ── Présence state ────────────────────────────────────────────
   presences = signal<PresenceResponse[]>([]);
@@ -149,7 +160,8 @@ export class ReceptionistDashboardComponent implements OnInit {
     telephoneClient: string;
     typeClient: TypeClient;
     // ── Champs communs (mode Normal) ──────────
-    dateDebut: string;
+    dateDebutDate: string;   // YYYY-MM-DD
+    dateDebutHeure: string;  // HH:mm
     dureeMinutes: number;
     services: ServiceFormRow[];
     // ── Champs spécifiques Mariée ─────────────
@@ -161,7 +173,8 @@ export class ReceptionistDashboardComponent implements OnInit {
     prenomClient: '',
     telephoneClient: '',
     typeClient: TypeClient.NORMAL,
-    dateDebut: '',
+    dateDebutDate: '',
+    dateDebutHeure: '',
     dureeMinutes: 60,
     services: [],
     statutMariee: StatutMariee.NON_VOILEE,
@@ -190,16 +203,59 @@ export class ReceptionistDashboardComponent implements OnInit {
   selectedProduit = signal<ProduitStockDto | null>(null);
 
   stockForm: ProduitStockRequest = {
-    nom: '', categorie: '', quantite: 0, quantiteMinimum: 0, unite: '', prixUnitaire: null
+    nom: '', categorie: '', quantite: 0, quantiteMinimum: 0, unite: '', prixUnitaire: null, nomFournisseur: ''
   };
 
   readonly CATEGORIES_STOCK = Object.values(CategorieStock);
   readonly CATEGORIE_STOCK_LABELS = CATEGORIE_STOCK_LABELS;
   CategorieStock = CategorieStock;
 
+  // ── Avis Clientes state ───────────────────────────────────────
+  avis = signal<AvisClienteDto[]>([]);
+  avisLoading = signal(false);
+  avisModalRdv = signal<RendezVousResponse | null>(null);
+  avisModalLoading = signal(false);
+  avisModalError = signal('');
+  avisDeleteConfirmId = signal<number | null>(null);
+  avisSearchQuery = signal('');
+  avisNoteFilter = signal<number | 0>(0);
+
+  avisForm: AvisClienteRequest = { note: 5, commentaire: '' };
+
+  /** IDs des RDV qui ont déjà un avis */
+  private avisRdvIds = computed(() => new Set(this.avis().map(a => a.rendezVousId)));
+
+  rdvHasAvis(rdvId: number): boolean {
+    return this.avisRdvIds().has(rdvId);
+  }
+
+  filteredAvis = computed(() => {
+    let list = this.avis();
+    const q = this.avisSearchQuery().toLowerCase().trim();
+    const note = this.avisNoteFilter();
+    if (note > 0) list = list.filter(a => a.note === note);
+    if (q) list = list.filter(a =>
+      `${a.prenomClient} ${a.nomClient} ${a.telephoneClient ?? ''}`.toLowerCase().includes(q)
+    );
+    return list;
+  });
+
+  noteMoyenne = computed(() => {
+    const list = this.avis();
+    if (!list.length) return 0;
+    return Math.round((list.reduce((sum, a) => sum + a.note, 0) / list.length) * 10) / 10;
+  });
+
+  avisParNote = computed(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    this.avis().forEach(a => counts[a.note] = (counts[a.note] ?? 0) + 1);
+    return counts;
+  });
+
   stockEnAlerte = computed(() => this.produits().filter(p => p.enAlerte));
 
   filteredProduits = computed(() => {
+
     let list = this.produits();
     const q = this.stockSearchQuery().toLowerCase().trim();
     const cat = this.stockCategorieFilter();
@@ -244,7 +300,7 @@ export class ReceptionistDashboardComponent implements OnInit {
       (r.telephoneClient?.toLowerCase().includes(q) ?? false)
     );
     if (d) list = list.filter(r => r.dateDebut.startsWith(d));
-    return [...list].sort((a, b) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
+    return [...list].sort((a, b) => new Date(b.dateDebut).getTime() - new Date(a.dateDebut).getTime());
   });
 
   filteredRdv = computed(() => {
@@ -256,7 +312,9 @@ export class ReceptionistDashboardComponent implements OnInit {
     return list;
   });
 
-  totalRdv     = computed(() => this.rendezVous().length);
+  totalRdv                    = computed(() => this.rendezVous().length);
+  rdvMariageCount             = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvMariageAvecServicesCount = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
   rdvEnAttente = computed(() => this.rendezVous().filter(r => r.statut === StatutRendezVous.EN_ATTENTE).length);
   rdvConfirme  = computed(() => this.rdvBaseList().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
   rdvAnnule    = computed(() => this.rdvBaseList().filter(r => r.statut === StatutRendezVous.ANNULE).length);
@@ -295,7 +353,8 @@ export class ReceptionistDashboardComponent implements OnInit {
     private rendezVousService: RendezVousService,
     private fideliteService: FideliteService,
     private stockService: StockService,
-    private presenceService: PresenceService
+    private presenceService: PresenceService,
+    private avisService: AvisService
   ) {}
 
   ngOnInit() {
@@ -383,6 +442,15 @@ export class ReceptionistDashboardComponent implements OnInit {
 
   isToday(iso: string): boolean {
     return iso === this.getTodayDate();
+  }
+
+  formatHeuresTravaillees(h: number): string {
+    const totalMin = Math.round(h * 60);
+    const heures = Math.floor(totalMin / 60);
+    const min = totalMin % 60;
+    if (heures === 0) return `${min}min`;
+    if (min === 0) return `${heures}h`;
+    return `${heures}h ${min}min`;
   }
 
   formatPresenceDate(iso: string): string {
@@ -485,6 +553,13 @@ export class ReceptionistDashboardComponent implements OnInit {
       next: (data) => { this.rendezVous.set(data); this.rdvLoading.set(false); },
       error: () => { this.rdvLoading.set(false); this.showToast('Erreur lors du chargement.', 'error'); }
     });
+    // Charger aussi les avis pour afficher les boutons correctement dans la liste RDV
+    if (this.avis().length === 0) {
+      this.avisService.listerTous().subscribe({
+        next: (data) => this.avis.set(data),
+        error: () => {}
+      });
+    }
   }
 
   setTab(tab: Tab) {
@@ -502,6 +577,9 @@ export class ReceptionistDashboardComponent implements OnInit {
     if (tab === 'presence') {
       this.loadPresence();
     }
+    if (tab === 'avis') {
+      this.loadAvis();
+    }
   }
 
   toggleSidebar() { this.sidebarOpen.update(v => !v); }
@@ -515,13 +593,25 @@ export class ReceptionistDashboardComponent implements OnInit {
     });
   }
 
-  utiliserOffreFidelite(telephone: string) {
-    this.fideliteService.utiliserOffre(telephone).subscribe({
+  ouvrirModalOffre(cliente: ClienteFideliteDto) {
+    this.offreModalCliente.set(cliente);
+  }
+
+  fermerModalOffre() {
+    this.offreModalCliente.set(null);
+  }
+
+  confirmerUtiliserOffre(typeOffre: TypeOffre) {
+    const cliente = this.offreModalCliente();
+    if (!cliente) return;
+    this.fermerModalOffre();
+    this.fideliteService.utiliserOffre(cliente.telephoneClient, typeOffre).subscribe({
       next: (updated) => {
         this.clientesFidelite.update(list =>
-          list.map(c => c.telephoneClient === telephone ? updated : c)
+          list.map(c => c.telephoneClient === cliente.telephoneClient ? updated : c)
         );
-        this.showToast('Offre utilisée avec succès !', 'success');
+        const label = typeOffre === 'SERVICE_GRATUIT' ? 'Service gratuit' : 'Promo prochain service';
+        this.showToast(`Offre utilisée : ${label} !`, 'success');
       },
       error: () => this.showToast('Erreur lors de l\'utilisation de l\'offre.', 'error')
     });
@@ -541,11 +631,92 @@ export class ReceptionistDashboardComponent implements OnInit {
     return (c.servicesVersProchainOffre / 5) * 100;
   }
 
+  // ── Avis Clientes ─────────────────────────────────────────────
+  loadAvis() {
+    this.avisLoading.set(true);
+    this.avisService.listerTous().subscribe({
+      next: (data) => { this.avis.set(data); this.avisLoading.set(false); },
+      error: () => { this.avisLoading.set(false); this.showToast('Erreur lors du chargement des avis.', 'error'); }
+    });
+  }
+
+  openAddAvisModal(rdv: RendezVousResponse) {
+    this.avisModalRdv.set(rdv);
+    this.avisForm = { note: 5, commentaire: '' };
+    this.avisModalError.set('');
+  }
+
+  closeAvisModal() {
+    this.avisModalRdv.set(null);
+    this.avisModalError.set('');
+  }
+
+  submitAvis() {
+    const rdv = this.avisModalRdv();
+    if (!rdv) return;
+    if (!this.avisForm.note || this.avisForm.note < 1 || this.avisForm.note > 5) {
+      this.avisModalError.set('Veuillez sélectionner une note entre 1 et 5.');
+      return;
+    }
+    this.avisModalLoading.set(true);
+    this.avisService.creer(rdv.id, this.avisForm).subscribe({
+      next: (created) => {
+        this.avis.update(list => [created, ...list]);
+        this.avisModalLoading.set(false);
+        this.closeAvisModal();
+        this.showToast('Avis ajouté avec succès !', 'success');
+      },
+      error: (err) => {
+        this.avisModalLoading.set(false);
+        this.avisModalError.set(err?.error?.message ?? 'Erreur lors de l\'ajout de l\'avis.');
+      }
+    });
+  }
+
+  confirmDeleteAvis(id: number) { this.avisDeleteConfirmId.set(id); }
+  cancelDeleteAvis()            { this.avisDeleteConfirmId.set(null); }
+
+  deleteAvis(id: number) {
+    this.avisService.supprimer(id).subscribe({
+      next: () => {
+        this.avis.update(list => list.filter(a => a.id !== id));
+        this.avisDeleteConfirmId.set(null);
+        this.showToast('Avis supprimé.', 'success');
+      },
+      error: () => this.showToast('Erreur lors de la suppression.', 'error')
+    });
+  }
+
+  getStarsArray(note: number): number[] {
+    return Array.from({ length: 5 }, (_, i) => i + 1);
+  }
+
+  getNoteLabel(note: number): string {
+    const map: Record<number, string> = { 1: 'Très mauvais', 2: 'Mauvais', 3: 'Moyen', 4: 'Bien', 5: 'Excellent' };
+    return map[note] ?? '';
+  }
+
+  getNoteClass(note: number): string {
+    if (note <= 2) return 'note--bad';
+    if (note === 3) return 'note--medium';
+    return 'note--good';
+  }
+
+  formatAvisDate(dateStr: string): string {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  getAvisClientInitials(a: AvisClienteDto): string {
+    return (a.prenomClient.charAt(0) + a.nomClient.charAt(0)).toUpperCase();
+  }
+
   // ── Modal ─────────────────────────────────────────────────────
   openCreateModal() {
     this.rdvForm = {
       nomClient: '', prenomClient: '', telephoneClient: '',
-      typeClient: TypeClient.NORMAL, dateDebut: '', dureeMinutes: 60,
+      typeClient: TypeClient.NORMAL,
+      dateDebutDate: '', dateDebutHeure: '', dureeMinutes: 60,
       services: [this.newServiceRow()],
       statutMariee: StatutMariee.NON_VOILEE,
       marieeServices: [this.newMarieeServiceRow()],
@@ -559,45 +730,51 @@ export class ReceptionistDashboardComponent implements OnInit {
   openEditModal(rdv: RendezVousResponse) {
     this.selectedRdv.set(rdv);
     const dateStr = rdv.dateDebut.substring(0, 16);
+    const datePart = dateStr.substring(0, 10);
+    const timePart = dateStr.substring(11, 16);
     const isMariage = rdv.typeClient === TypeClient.MARIAGE;
     this.rdvForm = {
       nomClient: rdv.nomClient,
       prenomClient: rdv.prenomClient,
       telephoneClient: rdv.telephoneClient ?? '',
       typeClient: rdv.typeClient,
-      dateDebut: dateStr,
+      dateDebutDate: datePart,
+      dateDebutHeure: timePart,
       dureeMinutes: rdv.dureeMinutes,
       services: isMariage ? [] : rdv.services.map(s => ({
         typeService: s.typeService,
+        date: s.datePrevue ? s.datePrevue.substring(0, 10) : datePart,
+        heure: s.datePrevue ? s.datePrevue.substring(11, 16) : timePart,
+        dureeMinutes: s.dureeService ?? rdv.dureeMinutes,
         employeeId: s.employeeId,
         availableEmployees: [{
           id: s.employeeId, nom: s.employeeNom, prenom: s.employeePrenom,
           email: '', role: Role.EMPLOYEE, activated: true,
-          specialite: s.employeeSpecialite as string
+          specialites: s.employeeSpecialite ? [s.employeeSpecialite as string] : []
         }] as UserDto[],
-        loadingEmployees: true
+        loadingEmployees: false
       })),
       statutMariee: rdv.statutMariee ?? StatutMariee.NON_VOILEE,
       marieeServices: isMariage ? rdv.services
         .filter(s => !s.employeeId)
         .map(s => ({
           typeService: s.typeService,
-          date: s.datePrevue ? s.datePrevue.substring(0, 10) : dateStr.substring(0, 10),
-          heure: s.datePrevue ? s.datePrevue.substring(11, 16) : dateStr.substring(11, 16),
+          date: s.datePrevue ? s.datePrevue.substring(0, 10) : datePart,
+          heure: s.datePrevue ? s.datePrevue.substring(11, 16) : timePart,
           codeRobe: s.codeRobe ?? ''
         })) : [this.newMarieeServiceRow()],
       normaleServices: isMariage ? rdv.services
         .filter(s => !!s.employeeId)
         .map(s => ({
           typeService: s.typeService,
-          date: s.datePrevue ? s.datePrevue.substring(0, 10) : dateStr.substring(0, 10),
-          heure: s.datePrevue ? s.datePrevue.substring(11, 16) : dateStr.substring(11, 16),
+          date: s.datePrevue ? s.datePrevue.substring(0, 10) : datePart,
+          heure: s.datePrevue ? s.datePrevue.substring(11, 16) : timePart,
           dureeMinutes: s.dureeService ?? rdv.dureeMinutes,
           employeeId: s.employeeId,
           availableEmployees: [{
             id: s.employeeId, nom: s.employeeNom, prenom: s.employeePrenom,
             email: '', role: Role.EMPLOYEE, activated: true,
-            specialite: s.employeeSpecialite as string
+            specialites: s.employeeSpecialite ? [s.employeeSpecialite as string] : []
           }] as UserDto[],
           loadingEmployees: false
         })) : []
@@ -605,31 +782,6 @@ export class ReceptionistDashboardComponent implements OnInit {
     this.rdvModalError.set('');
     this.rdvModalMode.set('edit');
     this.showRdvModal.set(true);
-
-    // Fetch fresh available employees for each service row
-    rdv.services.forEach((s, index) => {
-      const dateIso = dateStr + ':00';
-      this.rendezVousService.getEmployesDisponiblesParService(
-        s.typeService, dateIso, rdv.dureeMinutes
-      ).subscribe({
-        next: (employees) => {
-          const hasCurrentEmployee = employees.some(e => e.id === s.employeeId);
-          if (!hasCurrentEmployee) {
-            const currentEmp: UserDto = {
-              id: s.employeeId, nom: s.employeeNom, prenom: s.employeePrenom,
-              email: '', role: Role.EMPLOYEE, activated: true,
-              specialite: s.employeeSpecialite as string
-            };
-            employees = [currentEmp, ...employees];
-          }
-          this.rdvForm.services[index].availableEmployees = employees;
-          this.rdvForm.services[index].loadingEmployees = false;
-        },
-        error: () => {
-          this.rdvForm.services[index].loadingEmployees = false;
-        }
-      });
-    });
   }
 
   closeRdvModal() {
@@ -638,7 +790,10 @@ export class ReceptionistDashboardComponent implements OnInit {
   }
 
   newServiceRow(): ServiceFormRow {
-    return { typeService: '', employeeId: null, availableEmployees: [], loadingEmployees: false };
+    const lastDate = this.rdvForm.services.length > 0
+      ? this.rdvForm.services[this.rdvForm.services.length - 1].date
+      : '';
+    return { typeService: '', date: lastDate, heure: '', dureeMinutes: 60, employeeId: null, availableEmployees: [], loadingEmployees: false };
   }
 
   addServiceRow() {
@@ -655,53 +810,54 @@ export class ReceptionistDashboardComponent implements OnInit {
     const row = this.rdvForm.services[index];
     row.employeeId = null;
     row.availableEmployees = [];
-
-    // Auto-fill duration from service default (only for first service row)
-    if (row.typeService && index === 0) {
+    row.heure = '';
+    if (row.typeService) {
       const meta = TYPE_SERVICE_META[row.typeService];
-      if (meta) {
-        this.rdvForm.dureeMinutes = meta.dureeMinutes;
+      if (meta) row.dureeMinutes = meta.dureeMinutes;
+      if (row.date) {
+        this.fetchNormalServiceAllEmployees(index);
       }
-    }
-
-    if (row.typeService && this.rdvForm.dateDebut && this.rdvForm.dureeMinutes >= 1) {
-      this.fetchAvailableEmployees(index);
     }
   }
 
-  onDateOrHoursChange() {
-    this.rdvForm.services.forEach((row, index) => {
-      if (row.typeService) {
-        row.employeeId = null;
-        row.availableEmployees = [];
-        if (this.rdvForm.dateDebut && this.rdvForm.dureeMinutes >= 1) {
-          this.fetchAvailableEmployees(index);
-        }
-      }
-    });
+  onNormalServiceDateChange(i: number) {
+    const row = this.rdvForm.services[i];
+    row.employeeId = null;
+    row.availableEmployees = [];
+    row.heure = '';
+    if (row.typeService && row.date) {
+      this.fetchNormalServiceAllEmployees(i);
+    }
   }
 
-  fetchAvailableEmployees(index: number) {
-    const row = this.rdvForm.services[index];
-    if (!row.typeService || !this.rdvForm.dateDebut || this.rdvForm.dureeMinutes < 1) return;
-
+  fetchNormalServiceAllEmployees(i: number) {
+    const row = this.rdvForm.services[i];
+    if (!row.typeService || !row.date) return;
+    const specialite = this.getSpecialiteForService(row.typeService as TypeService);
+    if (!specialite) return;
     row.loadingEmployees = true;
-    const dateIso = this.rdvForm.dateDebut + ':00';
 
-    this.rendezVousService.getEmployesDisponiblesParService(
-      row.typeService as TypeService,
-      dateIso,
-      this.rdvForm.dureeMinutes
-    ).subscribe({
-      next: (employees) => {
-        row.availableEmployees = employees;
-        row.loadingEmployees = false;
-      },
-      error: () => {
-        row.loadingEmployees = false;
-        row.availableEmployees = [];
-      }
+    const canCheckAvailability = !!row.heure && !!row.dureeMinutes;
+    const requestUpdater = canCheckAvailability
+      ? this.rendezVousService.getEmployesDisponiblesParService(
+          row.typeService as TypeService,
+          `${row.date}T${row.heure}:00`,
+          row.dureeMinutes
+        )
+      : this.rendezVousService.getEmployesParSpecialite(specialite);
+
+    requestUpdater.subscribe({
+      next: (emps) => { row.availableEmployees = emps; row.loadingEmployees = false; },
+      error: () => { row.availableEmployees = []; row.loadingEmployees = false; }
     });
+  }
+
+  getSpecialiteForService(ts: TypeService | ''): Specialite | null {
+    if (!ts) return null;
+    for (const group of this.serviceGroups()) {
+      if (group.services.includes(ts as TypeService)) return group.specialite;
+    }
+    return null;
   }
 
   // ── Submit ────────────────────────────────────────────────────
@@ -792,19 +948,24 @@ export class ReceptionistDashboardComponent implements OnInit {
       };
     }
 
+    const filteredServices = this.rdvForm.services.filter(s => s.typeService);
+    const allDates = filteredServices.map(s => new Date(`${s.date}T${s.heure}:00`));
+    const minDate = allDates.reduce((a, b) => a < b ? a : b);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const dateDebutStr = `${minDate.getFullYear()}-${pad(minDate.getMonth()+1)}-${pad(minDate.getDate())}T${pad(minDate.getHours())}:${pad(minDate.getMinutes())}:00`;
     return {
       nomClient: this.rdvForm.nomClient,
       prenomClient: this.rdvForm.prenomClient,
       telephoneClient: this.rdvForm.telephoneClient || undefined,
       typeClient: this.rdvForm.typeClient,
-      dateDebut: this.rdvForm.dateDebut + ':00',
-      dureeMinutes: this.rdvForm.dureeMinutes,
-      services: this.rdvForm.services
-        .filter(s => s.typeService)
-        .map(s => ({
-          employeeId: s.employeeId ? Number(s.employeeId) : null,
-          typeService: s.typeService as TypeService
-        }))
+      dateDebut: dateDebutStr,
+      dureeMinutes: filteredServices.reduce((sum, s) => sum + s.dureeMinutes, 0),
+      services: filteredServices.map(s => ({
+        employeeId: s.employeeId ? Number(s.employeeId) : null,
+        typeService: s.typeService as TypeService,
+        datePrevue: `${s.date}T${s.heure}:00`,
+        dureeService: s.dureeMinutes
+      }))
     };
   }
 
@@ -829,21 +990,13 @@ export class ReceptionistDashboardComponent implements OnInit {
       return true;
     }
 
-    if (!this.rdvForm.dateDebut) {
-      this.rdvModalError.set('La date de début est obligatoire.');
-      return false;
-    }
-    const selectedDate = new Date(this.rdvForm.dateDebut);
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-      this.rdvModalError.set('La date ne peut pas être dans le passé.');
-      return false;
-    }
-    if (!this.rdvForm.dureeMinutes || this.rdvForm.dureeMinutes < 1) {
-      this.rdvModalError.set('La durée doit être d\'au moins 1 minute.'); return false;
+    if (this.rdvForm.services.length === 0) {
+      this.rdvModalError.set('Ajoutez au moins un service.'); return false;
     }
     for (const srv of this.rdvForm.services) {
       if (!srv.typeService) { this.rdvModalError.set('Sélectionnez un type de service pour chaque ligne.'); return false; }
+      if (!srv.date || !srv.heure) { this.rdvModalError.set('Renseignez la date et l\'heure pour chaque service.'); return false; }
+      if (!srv.dureeMinutes || srv.dureeMinutes < 1) { this.rdvModalError.set('La durée doit être d\'au moins 1 minute pour chaque service.'); return false; }
       if (!srv.employeeId) { this.rdvModalError.set('Sélectionnez une employée pour chaque service.'); return false; }
     }
     return true;
@@ -916,6 +1069,15 @@ export class ReceptionistDashboardComponent implements OnInit {
     return type === TypeClient.MARIAGE ? 'Mariage' : 'Normal';
   }
 
+  filterAlpha(event: Event, field: 'nomClient' | 'prenomClient'): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = input.value.replace(/[^a-zA-ZÀ-ÿ\s\-']/g, '');
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+    }
+    this.rdvForm[field] = cleaned;
+  }
+
   getTypeServiceLabel(ts: TypeService | string): string {
     return TYPE_SERVICE_META[ts]?.label ?? String(ts);
   }
@@ -969,7 +1131,7 @@ export class ReceptionistDashboardComponent implements OnInit {
   openCreateMarieeModal() {
     this.rdvForm = {
       nomClient: '', prenomClient: '', telephoneClient: '',
-      typeClient: TypeClient.MARIAGE, dateDebut: '', dureeMinutes: 60,
+      typeClient: TypeClient.MARIAGE, dateDebutDate: '', dateDebutHeure: '', dureeMinutes: 60,
       services: [],
       statutMariee: StatutMariee.NON_VOILEE,
       marieeServices: [this.newMarieeServiceRow()],
@@ -1018,8 +1180,17 @@ export class ReceptionistDashboardComponent implements OnInit {
     const row = this.rdvForm.normaleServices[i];
     row.employeeId = null;
     row.availableEmployees = [];
-    if (row.typeService && row.date && row.heure && row.dureeMinutes >= 1) {
-      this.fetchNormaleServiceMarieeEmployees(i);
+    row.heure = '';
+
+    if (row.typeService) {
+      const meta = TYPE_SERVICE_META[row.typeService];
+      if (meta) {
+        row.dureeMinutes = meta.dureeMinutes;
+      }
+    }
+
+    if (row.typeService && row.date) {
+      this.fetchNormaleServiceAllMarieeEmployees(i);
     }
   }
 
@@ -1027,19 +1198,29 @@ export class ReceptionistDashboardComponent implements OnInit {
     const row = this.rdvForm.normaleServices[i];
     row.employeeId = null;
     row.availableEmployees = [];
-    if (row.typeService && row.date && row.heure && row.dureeMinutes >= 1) {
-      this.fetchNormaleServiceMarieeEmployees(i);
+    row.heure = '';
+    if (row.typeService && row.date) {
+      this.fetchNormaleServiceAllMarieeEmployees(i);
     }
   }
 
-  fetchNormaleServiceMarieeEmployees(i: number) {
+  fetchNormaleServiceAllMarieeEmployees(i: number) {
     const row = this.rdvForm.normaleServices[i];
-    if (!row.typeService || !row.date || !row.heure || row.dureeMinutes < 1) return;
+    if (!row.typeService || !row.date) return;
+    const specialite = this.getSpecialiteForService(row.typeService as TypeService);
+    if (!specialite) return;
     row.loadingEmployees = true;
-    const dateIso = `${row.date}T${row.heure}:00`;
-    this.rendezVousService.getEmployesDisponiblesParService(
-      row.typeService as TypeService, dateIso, row.dureeMinutes
-    ).subscribe({
+
+    const canCheckAvailability = !!row.heure && !!row.dureeMinutes;
+    const requestUpdater = canCheckAvailability
+      ? this.rendezVousService.getEmployesDisponiblesParService(
+          row.typeService as TypeService,
+          `${row.date}T${row.heure}:00`,
+          row.dureeMinutes
+        )
+      : this.rendezVousService.getEmployesParSpecialite(specialite);
+
+    requestUpdater.subscribe({
       next: (emps) => { row.availableEmployees = emps; row.loadingEmployees = false; },
       error: () => { row.availableEmployees = []; row.loadingEmployees = false; }
     });
@@ -1058,6 +1239,64 @@ export class ReceptionistDashboardComponent implements OnInit {
     return s === StatutMariee.VOILEE ? 'Voilée' : 'Non voilée';
   }
 
+  // ── Time Slot Picker ──────────────────────────────────────────
+  openTimePickerKey = signal<string | null>(null);
+
+  readonly TIME_SLOTS: string[] = (() => {
+    const slots: string[] = [];
+    for (let h = 8; h <= 20; h++) {
+      slots.push(`${h.toString().padStart(2, '0')}:00`);
+      if (h < 20) slots.push(`${h.toString().padStart(2, '0')}:30`);
+    }
+    return slots;
+  })();
+
+  private timeToMinutes(hhmm: string): number {
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  isSlotBooked(employeeId: number | null, date: string, slotTime: string): boolean {
+    if (!employeeId || !date || !slotTime) return false;
+    const slotMin = this.timeToMinutes(slotTime);
+    const currentRdvId = this.selectedRdv()?.id;
+    for (const rdv of this.rendezVous()) {
+      if (rdv.statut === StatutRendezVous.ANNULE || rdv.statut === StatutRendezVous.TERMINE) continue;
+      if (currentRdvId && rdv.id === currentRdvId) continue;
+      for (const s of rdv.services) {
+        if (s.employeeId !== employeeId) continue;
+        if (!s.datePrevue?.startsWith(date)) continue;
+        const startMin = this.timeToMinutes(s.datePrevue.substring(11, 16));
+        const endMin = startMin + (s.dureeService ?? 60);
+        if (slotMin >= startMin && slotMin < endMin) return true;
+      }
+    }
+    return false;
+  }
+
+  toggleTimePicker(key: string) {
+    this.openTimePickerKey.update(cur => cur === key ? null : key);
+  }
+
+  closeTimePicker() {
+    this.openTimePickerKey.set(null);
+  }
+
+  selectNormalServiceTime(i: number, time: string) {
+    this.rdvForm.services[i].heure = time;
+    this.closeTimePicker();
+  }
+
+  selectNormaleMarieeSrvTime(i: number, time: string) {
+    this.rdvForm.normaleServices[i].heure = time;
+    this.closeTimePicker();
+  }
+
+  selectMarieeSrvTime(i: number, time: string) {
+    this.rdvForm.marieeServices[i].heure = time;
+    this.closeTimePicker();
+  }
+
   // ── Stock ─────────────────────────────────────────────────────
   loadStock() {
     this.stockLoading.set(true);
@@ -1068,7 +1307,7 @@ export class ReceptionistDashboardComponent implements OnInit {
   }
 
   openCreateStockModal() {
-    this.stockForm = { nom: '', categorie: '', quantite: 0, quantiteMinimum: 0, unite: '', prixUnitaire: null };
+    this.stockForm = { nom: '', categorie: '', quantite: 0, quantiteMinimum: 0, unite: '', prixUnitaire: null, nomFournisseur: '' };
     this.stockModalError.set('');
     this.stockModalMode.set('create');
     this.stockModalOpen.set(true);
@@ -1082,7 +1321,8 @@ export class ReceptionistDashboardComponent implements OnInit {
       quantite: p.quantite,
       quantiteMinimum: p.quantiteMinimum,
       unite: p.unite,
-      prixUnitaire: p.prixUnitaire
+      prixUnitaire: p.prixUnitaire,
+      nomFournisseur: p.nomFournisseur ?? ''
     };
     this.stockModalError.set('');
     this.stockModalMode.set('edit');

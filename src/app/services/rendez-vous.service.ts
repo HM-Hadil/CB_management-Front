@@ -7,14 +7,15 @@ import {
   UserDto,
   TypeServiceGroupeDto,
   TypeService,
-  StatutRendezVous
+  StatutRendezVous,
+  Specialite
 } from '../models/auth.models';
 
 @Injectable({ providedIn: 'root' })
 export class RendezVousService {
 
-  private readonly BASE_URL      = 'http://localhost:9090/api/receptionist';
-  private readonly EMPLOYEE_URL  = 'http://localhost:9090/api/employee';
+  private readonly BASE_URL      = 'http://localhost:9091/api/receptionist';
+  private readonly EMPLOYEE_URL  = 'http://localhost:9091/api/employee';
 
   constructor(private http: HttpClient) {}
 
@@ -59,6 +60,10 @@ export class RendezVousService {
       `${this.BASE_URL}/employees/disponibles/par-service`,
       { params }
     );
+  }
+
+  getEmployesParSpecialite(specialite: Specialite): Observable<UserDto[]> {
+    return this.http.get<UserDto[]>(`${this.BASE_URL}/employees/specialite/${specialite}`);
   }
 
   getServicesGroupes(): Observable<TypeServiceGroupeDto[]> {

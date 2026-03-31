@@ -6,7 +6,7 @@ import { ProduitStockDto, ProduitStockRequest } from '../models/auth.models';
 @Injectable({ providedIn: 'root' })
 export class StockService {
 
-  private readonly BASE_URL = 'http://localhost:9090/api/receptionist/stock';
+  private readonly BASE_URL = 'http://localhost:9091/api/receptionist/stock';
 
   constructor(private http: HttpClient) {}
 
@@ -28,5 +28,16 @@ export class StockService {
 
   supprimer(id: number): Observable<void> {
     return this.http.delete<void>(`${this.BASE_URL}/${id}`);
+  }
+
+  // ── Employee endpoints ────────────────────────────────────────
+  private readonly EMPLOYEE_URL = 'http://localhost:9090/api/employee/stock';
+
+  getAllProduitsEmployee(): Observable<ProduitStockDto[]> {
+    return this.http.get<ProduitStockDto[]>(this.EMPLOYEE_URL);
+  }
+
+  decrementeQuantite(id: number): Observable<ProduitStockDto> {
+    return this.http.patch<ProduitStockDto>(`${this.EMPLOYEE_URL}/${id}/decrementer`, {});
   }
 }

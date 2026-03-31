@@ -33,6 +33,10 @@
           <span class="nav-badge nav-badge--rdv">{{ rdvTotalCount() }}</span>
         }
       </button>
+      <button class="nav-item" [class.active]="activeTab() === 'presence'" (click)="setTab('presence')">
+        <i class="pi pi-id-card"></i>
+        <span>Présence</span>
+      </button>
     </nav>
 
     <div class="sidebar__user">
@@ -62,27 +66,35 @@
           @if (activeTab() === 'rdv') {
             <h1 class="page-title">Tous les Rendez-vous</h1>
             <p class="page-sub">Consultation globale — lecture seule</p>
+          } @else if (activeTab() === 'presence') {
+            <h1 class="page-title">Présence du Personnel</h1>
+            <p class="page-sub">Consultation — lecture seule</p>
           } @else {
             <h1 class="page-title">Gestion du Personnel</h1>
             <p class="page-sub">Gérez les comptes employés et réceptionnistes</p>
           }
         </div>
       </div>
-      @if (activeTab() !== 'rdv') {
+      @if (activeTab() !== 'rdv' && activeTab() !== 'presence') {
         <button class="btn-create" (click)="openCreateModal()">
           <i class="pi pi-user-plus"></i>
           Créer un compte
         </button>
-      } @else {
+      } @else if (activeTab() === 'rdv') {
         <button class="btn-refresh" (click)="loadAllRdv()" [disabled]="rdvLoading()">
           <i [class]="rdvLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
+          Actualiser
+        </button>
+      } @else if (activeTab() === 'presence') {
+        <button class="btn-refresh" (click)="loadPresence()" [disabled]="presenceLoading()">
+          <i [class]="presenceLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
           Actualiser
         </button>
       }
     </header>
 
     <!-- ══ STAFF SECTION (tabs: all / employees / receptionists) ══ -->
-    @if (activeTab() !== 'rdv') {
+    @if (activeTab() !== 'rdv' && activeTab() !== 'presence') {
 
       <!-- Stats cards -->
       <div class="stats-row">
@@ -214,8 +226,10 @@
                     </span>
                   </td>
                   <td>
-                    @if (user.specialite) {
-                      <span class="specialite-badge">{{ getSpecialiteLabel(user.specialite) }}</span>
+                    @if (user.specialites && user.specialites.length > 0) {
+                      @for (sp of user.specialites; track sp) {
+                        <span class="specialite-badge">{{ getSpecialitesLabels([sp]) }}</span>
+                      }
                     } @else {
                       <span class="text-muted">—</span>
                     }
@@ -335,6 +349,24 @@
             <span class="stat-card__label">Total RDV</span>
           </div>
         </div>
+        <div class="stat-card stat-card--pink stat-card--clickable"
+             [class.stat-card--selected]="rdvFilterTypeClient() === TypeClient.MARIAGE"
+             (click)="setRdvFilterTypeClient(TypeClient.MARIAGE)" title="Voir les RDV Mariée">
+          <div class="stat-card__icon"><i class="pi pi-heart"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvMariageCount() }}</span>
+            <span class="stat-card__label">RDV Mariée</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--mariage-svc stat-card--clickable"
+             [class.stat-card--selected]="rdvFilterTypeClient() === 'MARIAGE_SERVICES'"
+             (click)="setRdvFilterTypeClient('MARIAGE_SERVICES')" title="Voir les RDV Mariée avec services">
+          <div class="stat-card__icon"><i class="pi pi-star"></i></div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ rdvMariageAvecServicesCount() }}</span>
+            <span class="stat-card__label">Mariée + Services</span>
+          </div>
+        </div>
       </div>
 
       <!-- RDV Filters -->
@@ -387,7 +419,7 @@
               <option value="ALL">Toutes les employées</option>
               @for (emp of employeesList(); track emp.id) {
                 <option [value]="emp.id.toString()">{{ emp.prenom }} {{ emp.nom }}
-                  @if (emp.specialite) { ({{ getSpecialiteLabel(emp.specialite) }}) }
+                  @if (emp.specialites && emp.specialites.length > 0) { ({{ getSpecialitesLabels(emp.specialites) }}) }
                 </option>
               }
             </select>
@@ -514,7 +546,7 @@
                     <!-- Durée -->
                     <td>
                       <span class="rdv-duree-badge">
-                        <i class="pi pi-clock"></i>{{ rdv.dureeMinutes }}min
+                        <i class="pi pi-clock"></i>{{ formatDuree(rdv.dureeMinutes) }}
                       </span>
                     </td>
 
@@ -538,6 +570,189 @@
           </div>
         }
       </div>
+    }
+
+    <!-- ══ PRÉSENCE SECTION (lecture seule) ═══════════════════════ -->
+    @if (activeTab() === 'presence') {
+      <section class="presence-section">
+
+        <!-- Stats -->
+        <div class="pres-stats">
+          <div class="pres-stat pres-stat--green">
+            <div class="pres-stat__left">
+              <span class="pres-stat__value">{{ presentsCount() }}</span>
+              <span class="pres-stat__label">Présents</span>
+            </div>
+            <div class="pres-stat__icon"><i class="pi pi-user-plus"></i></div>
+          </div>
+          <div class="pres-stat pres-stat--red">
+            <div class="pres-stat__left">
+              <span class="pres-stat__value">{{ absentsCount() }}</span>
+              <span class="pres-stat__label">Absents</span>
+            </div>
+            <div class="pres-stat__icon"><i class="pi pi-user-minus"></i></div>
+          </div>
+          <div class="pres-stat pres-stat--purple">
+            <div class="pres-stat__left">
+              <span class="pres-stat__value">{{ presences().length }}</span>
+              <span class="pres-stat__label">Total équipe</span>
+            </div>
+            <div class="pres-stat__icon"><i class="pi pi-users"></i></div>
+          </div>
+          <div class="pres-stat pres-stat--gold">
+            <div class="pres-stat__left">
+              <span class="pres-stat__value">{{ totalHeures() }}<small>h</small></span>
+              <span class="pres-stat__label">Heures travaillées</span>
+            </div>
+            <div class="pres-stat__icon"><i class="pi pi-clock"></i></div>
+          </div>
+        </div>
+
+        <!-- Date picker -->
+        <div class="pres-cal-card">
+          <div class="pres-cal-card__header">
+            <i class="pi pi-calendar"></i>
+            <span>Choisir une date</span>
+            @if (isToday(presenceSelectedDate())) {
+              <span class="pres-cal-card__today-pill">Aujourd'hui</span>
+            }
+          </div>
+          <div class="pres-date-picker">
+            <input type="date"
+              [ngModel]="presenceSelectedDate()"
+              (ngModelChange)="selectPresenceDate($event)"
+              class="modal-input pres-date-input" />
+          </div>
+        </div>
+
+        <!-- Employee list -->
+        <div class="pres-list-card">
+          <div class="pres-list-card__header">
+            <span class="pres-list-card__title">
+              <i class="pi pi-list"></i> Équipe — {{ formatPresenceDate(presenceSelectedDate()) }}
+            </span>
+            <span class="pres-readonly-pill"><i class="pi pi-eye"></i> Lecture seule</span>
+          </div>
+
+          @if (presenceLoading()) {
+            <div class="pres-loader">
+              <i class="pi pi-spin pi-spinner"></i>
+              <span>Chargement...</span>
+            </div>
+          } @else if (presences().length === 0) {
+            <div class="pres-empty">
+              <i class="pi pi-users"></i>
+              <p>Aucun employé trouvé.</p>
+            </div>
+          } @else {
+
+            <!-- Desktop table -->
+            <div class="pres-table-wrap">
+              <table class="pres-table">
+                <thead>
+                  <tr>
+                    <th>Employée</th>
+                    <th>Horaires</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of presences(); track p.employeeId) {
+                    <tr [class]="'pres-row pres-row--' + getPresenceStatutClass(p.statut)">
+                      <td>
+                        <div class="pres-emp">
+                          <div class="pres-emp__avatar pres-emp__avatar--{{ getPresenceStatutClass(p.statut) }}">
+                            {{ getEmployeeInitials(p) }}
+                          </div>
+                          <div class="pres-emp__info">
+                            <strong>{{ p.employeePrenom }} {{ p.employeeNom }}</strong>
+                            @if (p.employeeSpecialite) {
+                              <span>{{ p.employeeSpecialite }}</span>
+                            }
+                          </div>
+                        </div>
+                      </td>
+                      <td class="pres-horaires">
+                        @if (p.statut === StatutPresence.ABSENT) {
+                          <span class="pres-horaires__empty">
+                            <i class="pi pi-minus-circle"></i> Pas encore arrivé(e)
+                          </span>
+                        } @else {
+                          <div class="pres-horaires__chips">
+                            @if (p.heureArrivee) {
+                              <span class="pres-chip pres-chip--in">
+                                <i class="pi pi-sign-in"></i> {{ p.heureArrivee }}
+                              </span>
+                            }
+                            @if (p.heureDepart) {
+                              <span class="pres-chip pres-chip--out">
+                                <i class="pi pi-sign-out"></i> {{ p.heureDepart }}
+                              </span>
+                            }
+                            @if (p.heuresTravaillees != null) {
+                              <span class="pres-chip pres-chip--dur">
+                                <i class="pi pi-hourglass"></i> {{ p.heuresTravaillees }}h
+                              </span>
+                            }
+                          </div>
+                        }
+                      </td>
+                      <td>
+                        <span class="pres-badge pres-badge--{{ getPresenceStatutClass(p.statut) }}">
+                          <span class="pres-badge__dot"></span>
+                          {{ getPresenceStatutLabel(p.statut) }}
+                        </span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Mobile cards -->
+            <div class="pres-cards">
+              @for (p of presences(); track p.employeeId) {
+                <div class="pres-card pres-card--{{ getPresenceStatutClass(p.statut) }}">
+                  <div class="pres-card__top">
+                    <div class="pres-emp">
+                      <div class="pres-emp__avatar pres-emp__avatar--{{ getPresenceStatutClass(p.statut) }}">
+                        {{ getEmployeeInitials(p) }}
+                      </div>
+                      <div class="pres-emp__info">
+                        <strong>{{ p.employeePrenom }} {{ p.employeeNom }}</strong>
+                        @if (p.employeeSpecialite) {
+                          <span>{{ p.employeeSpecialite }}</span>
+                        }
+                      </div>
+                    </div>
+                    <span class="pres-badge pres-badge--{{ getPresenceStatutClass(p.statut) }}">
+                      <span class="pres-badge__dot"></span>
+                      {{ getPresenceStatutLabel(p.statut) }}
+                    </span>
+                  </div>
+
+                  @if (p.statut !== StatutPresence.ABSENT) {
+                    <div class="pres-card__chips">
+                      @if (p.heureArrivee) {
+                        <span class="pres-chip pres-chip--in"><i class="pi pi-sign-in"></i> {{ p.heureArrivee }}</span>
+                      }
+                      @if (p.heureDepart) {
+                        <span class="pres-chip pres-chip--out"><i class="pi pi-sign-out"></i> {{ p.heureDepart }}</span>
+                      }
+                      @if (p.heuresTravaillees != null) {
+                        <span class="pres-chip pres-chip--dur"><i class="pi pi-hourglass"></i> {{ p.heuresTravaillees }}h travaillées</span>
+                      }
+                    </div>
+                  } @else {
+                    <p class="pres-card__absent-txt"><i class="pi pi-minus-circle"></i> Pas encore arrivé(e)</p>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+      </section>
     }
 
   </main>
@@ -612,18 +827,7 @@
           </div>
 
         } @else {
-          <div class="modal-role-selector">
-            <button type="button" class="modal-role-btn" [class.active]="editForm.role === Role.EMPLOYEE"
-              (click)="editForm.role = Role.EMPLOYEE">
-              <i class="pi pi-briefcase"></i> Employée
-            </button>
-            <button type="button" class="modal-role-btn" [class.active]="editForm.role === Role.RECEPTIONIST"
-              (click)="editForm.role = Role.RECEPTIONIST">
-              <i class="pi pi-desktop"></i> Réceptionniste
-            </button>
-          </div>
-
-          <div class="modal-form-grid">
+<div class="modal-form-grid">
             <div class="modal-form-group">
               <label>Prénom *</label>
               <input type="text" [(ngModel)]="editForm.prenom" class="modal-input" />
@@ -642,23 +846,6 @@
             <input type="tel" [(ngModel)]="editForm.telephone" class="modal-input" placeholder="xx xxx xxx" maxlength="8" />
           </div>
 
-          @if (selectedUser()?.role === Role.EMPLOYEE) {
-            <div class="modal-form-grid employee-fields">
-              <div class="modal-form-group">
-                <label>Spécialité</label>
-                <select [(ngModel)]="editForm.specialite" class="modal-input modal-select">
-                  <option value="">Choisir...</option>
-                  @for (sp of specialites; track sp.value) {
-                    <option [value]="sp.value">{{ sp.label }}</option>
-                  }
-                </select>
-              </div>
-              <div class="modal-form-group">
-                <label>Années d'expérience</label>
-                <input type="number" [(ngModel)]="editForm.nombresExperiences" class="modal-input" min="0" max="50" />
-              </div>
-            </div>
-          }
 
           <div class="modal-form-group">
             <label>Nouveau mot de passe <span class="optional">(laisser vide pour ne pas modifier)</span></label>
@@ -763,7 +950,7 @@
             </div>
             <div class="rdv-info-item">
               <span class="rdv-info-label">Durée</span>
-              <span class="rdv-info-value">{{ selectedRdv()!.dureeMinutes }} minute(s)</span>
+              <span class="rdv-info-value">{{ formatDuree(selectedRdv()!.dureeMinutes) }}</span>
             </div>
           </div>
         </div>

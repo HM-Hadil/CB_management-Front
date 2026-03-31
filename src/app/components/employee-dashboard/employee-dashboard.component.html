@@ -26,6 +26,10 @@
           <span class="nav-badge-emp">{{ rdvEnAttente() }}</span>
         }
       </button>
+      <button class="nav-item" [class.active]="activeTab() === 'stock'" (click)="setTab('stock')">
+        <i class="pi pi-box"></i>
+        <span>Stock Produits</span>
+      </button>
     </nav>
 
     <div class="sidebar__user">
@@ -48,11 +52,13 @@
         <h1 class="page-title">
           @if (activeTab() === 'profile') { Mon Profil }
           @else if (activeTab() === 'password') { Changer le mot de passe }
+          @else if (activeTab() === 'stock') { Stock Produits }
           @else { Mon Planning }
         </h1>
         <p class="page-sub">
           @if (activeTab() === 'profile') { Mettez à jour vos informations professionnelles }
           @else if (activeTab() === 'password') { Modifiez votre mot de passe de connexion }
+          @else if (activeTab() === 'stock') { Consultez et signalez la consommation des produits }
           @else { Consultez vos rendez-vous assignés }
         </p>
       </div>
@@ -76,10 +82,12 @@
               <span class="tag tag--rose">
                 <i class="pi pi-briefcase"></i> Employée
               </span>
-              @if (profile()?.specialite) {
-                <span class="tag tag--gold">
-                  <i class="pi pi-star"></i> {{ profile()?.specialite }}
-                </span>
+              @if (profile()?.specialites && profile()!.specialites!.length > 0) {
+                @for (sp of profile()!.specialites!; track sp) {
+                  <span class="tag tag--gold">
+                    <i class="pi pi-star"></i> {{ sp }}
+                  </span>
+                }
               }
               @if (profile()?.nombresExperiences !== null && profile()?.nombresExperiences !== undefined) {
                 <span class="tag tag--gray">
@@ -128,14 +136,18 @@
                   class="luxury-input" placeholder="xx xxx xxx" maxlength="8" />
               </div>
 
-              <div class="form-group">
-                <label><i class="pi pi-palette"></i> Spécialité *</label>
-                <select [(ngModel)]="profileForm.specialite" class="luxury-input luxury-select">
-                  <option value="">Sélectionnez votre spécialité</option>
+              <div class="form-group full-width">
+                <label><i class="pi pi-palette"></i> Spécialités</label>
+                <div class="specialites-checkboxes">
                   @for (sp of specialites; track sp.value) {
-                    <option [value]="sp.value">{{ sp.label }}</option>
+                    <label class="checkbox-label" [class.checked]="isSpecialiteSelected(sp.value)">
+                      <input type="checkbox"
+                        [checked]="isSpecialiteSelected(sp.value)"
+                        (change)="toggleSpecialite(sp.value)" />
+                      {{ sp.label }}
+                    </label>
                   }
-                </select>
+                </div>
               </div>
 
               <div class="form-group">
@@ -294,6 +306,22 @@
             <div class="pstat-info">
               <span class="pstat-value">{{ totalRdv() }}</span>
               <span class="pstat-label">Total RDV</span>
+            </div>
+          </div>
+          <div class="pstat-card pstat--pink">
+            <div class="pstat-icon"><i class="pi pi-heart"></i></div>
+            <div class="pstat-info">
+              <span class="pstat-value">{{ rdvMariage() }}</span>
+              <span class="pstat-label">RDV Mariée</span>
+            </div>
+          </div>
+          <div class="pstat-card pstat--mariage-svc pstat--clickable"
+               [class.pstat--selected]="filterTypeClient() === 'MARIAGE_SERVICES'"
+               (click)="setFilterTypeClient('MARIAGE_SERVICES')" title="Voir les RDV Mariée avec services assignés">
+            <div class="pstat-icon"><i class="pi pi-star"></i></div>
+            <div class="pstat-info">
+              <span class="pstat-value">{{ rdvMariageAvecServices() }}</span>
+              <span class="pstat-label">Mariée + Services</span>
             </div>
           </div>
         </div>
@@ -458,7 +486,7 @@
                       <td>
                         <span class="pduree-badge">
                           <i class="pi pi-clock"></i>
-                          {{ rdv.dureeMinutes }}min
+                          {{ formatDuree(rdv.dureeMinutes) }}
                         </span>
                       </td>
 
@@ -491,6 +519,85 @@
           }
         </div>
       }
+    }
+
+    <!-- ══ STOCK TAB ══════════════════════════════════════════════ -->
+    @if (activeTab() === 'stock') {
+      <div class="stock-section">
+
+        <!-- Search -->
+        <div class="stock-toolbar">
+          <div class="search-box">
+            <i class="pi pi-search"></i>
+            <input type="text" placeholder="Rechercher un produit..."
+                   [value]="stockSearchQuery()"
+                   (input)="stockSearchQuery.set($any($event.target).value)" />
+          </div>
+          <button class="refresh-btn" (click)="loadStock()" title="Rafraîchir">
+            <i class="pi pi-refresh"></i>
+          </button>
+        </div>
+
+        @if (stockLoading()) {
+          <div class="stock-loading">
+            <i class="pi pi-spin pi-spinner"></i>
+            <span>Chargement des produits...</span>
+          </div>
+        } @else {
+          @if (stockError()) {
+            <div class="stock-error">
+              <i class="pi pi-exclamation-circle"></i> {{ stockError() }}
+            </div>
+          }
+
+          @if (filteredProduits().length === 0) {
+            <div class="stock-empty">
+              <i class="pi pi-box"></i>
+              <p>Aucun produit trouvé.</p>
+            </div>
+          } @else {
+            <div class="stock-grid">
+              @for (produit of filteredProduits(); track produit.id) {
+                <div class="stock-card" [class.en-alerte]="produit.enAlerte">
+                  @if (produit.enAlerte) {
+                    <div class="alerte-badge"><i class="pi pi-exclamation-triangle"></i> Stock bas</div>
+                  }
+                  <div class="stock-card__header">
+                    <div class="stock-card__nom">{{ produit.nom }}</div>
+                    <span class="stock-categorie-pill">{{ CATEGORIE_STOCK_LABELS[produit.categorie] }}</span>
+                  </div>
+                  <div class="stock-card__body">
+                    <div class="stock-info-row">
+                      <span class="info-label">Fournisseur</span>
+                      <span class="info-value">{{ produit.nomFournisseur || '—' }}</span>
+                    </div>
+                    <div class="stock-info-row">
+                      <span class="info-label">Prix unitaire</span>
+                      <span class="info-value">{{ produit.prixUnitaire | number:'1.2-2' }} DH</span>
+                    </div>
+                    <div class="stock-info-row">
+                      <span class="info-label">Qté minimum</span>
+                      <span class="info-value">{{ produit.quantiteMinimum }} {{ produit.unite }}</span>
+                    </div>
+                  </div>
+                  <div class="stock-card__footer">
+                    <div class="quantite-display" [class.low]="produit.enAlerte">
+                      <span class="quantite-num">{{ produit.quantite }}</span>
+                      <span class="quantite-unite">{{ produit.unite }}</span>
+                    </div>
+                    <button class="decrement-btn"
+                            [disabled]="produit.quantite <= 0"
+                            (click)="decrementerStock(produit)"
+                            title="Signaler consommation (−1)">
+                      <i class="pi pi-minus"></i>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
+      </div>
     }
   </main>
 </div>

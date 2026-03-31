@@ -4,12 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { RendezVousService } from '../../services/rendez-vous.service';
+import { PresenceService } from '../../services/presence.service';
 import {
   UserDto, Role, RegisterRequest, UpdateUserRequest,
-  RendezVousResponse, StatutRendezVous, TypeClient, TypeService
+  RendezVousResponse, StatutRendezVous, TypeClient, TypeService,
+  PresenceResponse, StatutPresence
 } from '../../models/auth.models';
 
-type Tab = 'all' | 'employees' | 'receptionists' | 'rdv';
+type Tab = 'all' | 'employees' | 'receptionists' | 'rdv' | 'presence';
 type ModalMode = 'create' | 'edit';
 
 @Component({
@@ -53,14 +55,12 @@ export class AdminDashboardComponent implements OnInit {
   form: RegisterRequest & { confirmPassword?: string } = {
     nom: '', prenom: '', email: '', telephone: '',
     password: '', confirmPassword: '',
-    role: Role.EMPLOYEE,
-    specialite: '', nombresExperiences: undefined
+    role: Role.EMPLOYEE
   };
 
   editForm: UpdateUserRequest = {
     nom: '', prenom: '', email: '', telephone: '',
-    password: '', role: Role.EMPLOYEE,
-    specialite: '', nombresExperiences: undefined
+    password: '', role: Role.EMPLOYEE
   };
 
   readonly specialites: { value: string; label: string }[] = [
@@ -90,7 +90,7 @@ export class AdminDashboardComponent implements OnInit {
         u.nom.toLowerCase().includes(q) ||
         u.prenom.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
-        (u.specialite?.toLowerCase().includes(q) ?? false)
+        (u.specialites?.some(s => s.toLowerCase().includes(q)) ?? false)
       );
     }
     return list;
@@ -145,7 +145,7 @@ export class AdminDashboardComponent implements OnInit {
       (r.telephoneClient?.toLowerCase().includes(q) ?? false)
     );
     if (d) list = list.filter(r => r.dateDebut.startsWith(d));
-    return [...list].sort((a, b) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
+    return [...list].sort((a, b) => new Date(b.dateDebut).getTime() - new Date(a.dateDebut).getTime());
   });
 
   rdvTotalCount      = computed(() => this.allRdv().length);
@@ -168,8 +168,9 @@ export class AdminDashboardComponent implements OnInit {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
   });
-  rdvMariageCount = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.MARIAGE).length);
-  rdvNormalCount  = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.NORMAL).length);
+  rdvMariageCount            = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvNormalCount             = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.NORMAL).length);
+  rdvMariageAvecServicesCount = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
 
   // Status counts filtered by current period/date selection
   private rdvPeriodFiltered = computed(() => {
@@ -205,6 +206,22 @@ export class AdminDashboardComponent implements OnInit {
 
   employeesList = computed(() => this.users().filter(u => u.role === Role.EMPLOYEE && u.activated));
 
+  // ── Présence state ────────────────────────────────────────────
+  presences = signal<PresenceResponse[]>([]);
+  presenceLoading = signal(false);
+  presenceSelectedDate = signal<string>((() => {
+    const n = new Date(); const p = (x: number) => x.toString().padStart(2, '0');
+    return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+  })());
+  StatutPresence = StatutPresence;
+
+  presentsCount = computed(() => this.presences().filter(p => p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD).length);
+  absentsCount  = computed(() => this.presences().filter(p => p.statut === StatutPresence.ABSENT).length);
+  totalHeures   = computed(() => {
+    const sum = this.presences().reduce((acc, p) => acc + (p.heuresTravaillees ?? 0), 0);
+    return Math.round(sum * 100) / 100;
+  });
+
   // ── Enums exposed ────────────────────────────────────────────
   Role = Role;
   StatutRendezVous = StatutRendezVous;
@@ -213,7 +230,8 @@ export class AdminDashboardComponent implements OnInit {
   constructor(
     private userService: UserService,
     public authService: AuthService,
-    private rendezVousService: RendezVousService
+    private rendezVousService: RendezVousService,
+    private presenceService: PresenceService
   ) {}
 
   ngOnInit() {
@@ -240,8 +258,12 @@ export class AdminDashboardComponent implements OnInit {
   // ── Tab ───────────────────────────────────────────────────────
   setTab(tab: Tab) {
     this.activeTab.set(tab);
+    this.sidebarOpen.set(false);
     if (tab === 'rdv' && this.allRdv().length === 0) {
       this.loadAllRdv();
+    }
+    if (tab === 'presence') {
+      this.loadPresence();
     }
   }
 
@@ -264,8 +286,7 @@ export class AdminDashboardComponent implements OnInit {
     this.form = {
       nom: '', prenom: '', email: '', telephone: '',
       password: '', confirmPassword: '',
-      role: role ?? Role.EMPLOYEE,
-      specialite: '', nombresExperiences: undefined
+      role: role ?? Role.EMPLOYEE
     };
     this.modalError.set('');
     this.modalMode.set('create');
@@ -278,8 +299,7 @@ export class AdminDashboardComponent implements OnInit {
     this.editForm = {
       nom: user.nom, prenom: user.prenom, email: user.email,
       telephone: user.telephone ?? '', password: '',
-      role: user.role, specialite: user.specialite ?? '',
-      nombresExperiences: user.nombresExperiences
+      role: user.role
     };
     this.modalError.set('');
     this.modalMode.set('edit');
@@ -340,9 +360,7 @@ export class AdminDashboardComponent implements OnInit {
 
     const request: UpdateUserRequest = {
       ...this.editForm,
-      password: this.editForm.password || undefined,
-      specialite: this.isEmployeeEdit() ? this.editForm.specialite : undefined,
-      nombresExperiences: this.isEmployeeEdit() ? this.editForm.nombresExperiences : undefined
+      password: this.editForm.password || undefined
     };
 
     this.userService.updateUser(user.id, request).subscribe({
@@ -393,9 +411,9 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // ── Helpers ──────────────────────────────────────────────────
-  getSpecialiteLabel(sp?: string): string {
-    if (!sp) return '—';
-    return this.specialiteLabels[sp] ?? sp;
+  getSpecialitesLabels(specialites?: string[]): string {
+    if (!specialites || specialites.length === 0) return '—';
+    return specialites.map(s => this.specialiteLabels[s] ?? s).join(', ');
   }
 
   getRoleLabel(role: Role): string {
@@ -455,6 +473,66 @@ export class AdminDashboardComponent implements OnInit {
 
   getClientInitials(rdv: RendezVousResponse): string {
     return (rdv.prenomClient.charAt(0) + rdv.nomClient.charAt(0)).toUpperCase();
+  }
+
+  formatDuree(minutes: number): string {
+    if (!minutes) return '—';
+    if (minutes < 60) return `${minutes} min`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
+  }
+
+  // ── Présence (lecture seule) ─────────────────────────────────
+  loadPresence(date?: string) {
+    const d = date ?? this.presenceSelectedDate();
+    this.presenceLoading.set(true);
+    this.presenceService.getPresenceForDate(d).subscribe({
+      next: (data) => { this.presences.set(data); this.presenceLoading.set(false); },
+      error: () => { this.presenceLoading.set(false); this.showToast('Erreur lors du chargement de la présence.', 'error'); }
+    });
+  }
+
+  selectPresenceDate(iso: string) {
+    this.presenceSelectedDate.set(iso);
+    this.loadPresence(iso);
+  }
+
+  getPresenceStatutLabel(s: StatutPresence): string {
+    const map: Record<StatutPresence, string> = {
+      ABSENT: 'Absent', PRESENT: 'Présent', RETARD: 'Retard', TERMINE: 'Terminé'
+    };
+    return map[s];
+  }
+
+  getPresenceStatutClass(s: StatutPresence): string {
+    const map: Record<StatutPresence, string> = {
+      ABSENT: 'absent', PRESENT: 'present', RETARD: 'retard', TERMINE: 'termine'
+    };
+    return map[s];
+  }
+
+  getEmployeeInitials(p: PresenceResponse): string {
+    return (p.employeePrenom.charAt(0) + p.employeeNom.charAt(0)).toUpperCase();
+  }
+
+  isToday(iso: string): boolean {
+    return iso === this.getTodayDate();
+  }
+
+  formatPresenceDate(iso: string): string {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+  }
+
+  getTodayDate(): string {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   }
 
   logout() { this.authService.logout(); }

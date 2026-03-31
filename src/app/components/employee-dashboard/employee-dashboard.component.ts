@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { ProfileService } from '../../services/profile.service';
 import { RendezVousService } from '../../services/rendez-vous.service';
+import { StockService } from '../../services/stock.service';
 import {
   UserDto,
   UpdateProfileRequest,
@@ -11,10 +12,13 @@ import {
   ServiceRendezVousDto,
   StatutRendezVous,
   TypeClient,
-  TypeService
+  TypeService,
+  ProduitStockDto,
+  CategorieStock,
+  CATEGORIE_STOCK_LABELS
 } from '../../models/auth.models';
 
-type Tab = 'profile' | 'password' | 'planning';
+type Tab = 'profile' | 'password' | 'planning' | 'stock';
 
 @Component({
   selector: 'app-employee-dashboard',
@@ -37,7 +41,7 @@ export class EmployeeDashboardComponent implements OnInit {
 
   profileForm: UpdateProfileRequest = {
     telephone: '',
-    specialite: '',
+    specialites: [],
     nombresExperiences: undefined
   };
 
@@ -63,6 +67,22 @@ export class EmployeeDashboardComponent implements OnInit {
   planningSearch = signal('');
   planningFilterDate = signal<string>('');
   viewPeriod = signal<'today' | 'week' | 'month' | 'all'>('today');
+
+  // ── Stock state ────────────────────────────────────────────────
+  produits = signal<ProduitStockDto[]>([]);
+  stockLoading = signal(false);  stockError = signal('');  stockSearchQuery = signal('');
+  CATEGORIE_STOCK_LABELS = CATEGORIE_STOCK_LABELS;
+
+  filteredProduits = computed(() => {
+    const q = this.stockSearchQuery().toLowerCase().trim();
+    const list = this.produits();
+    if (!q) return list;
+    return list.filter(p =>
+      (p.nom ?? '').toLowerCase().includes(q) ||
+      (p.nomFournisseur ?? '').toLowerCase().includes(q) ||
+      (CATEGORIE_STOCK_LABELS[p.categorie] ?? '').toLowerCase().includes(q)
+    );
+  });
 
   // ── Expose enums ──────────────────────────────────────────────
   StatutRendezVous = StatutRendezVous;
@@ -109,7 +129,7 @@ export class EmployeeDashboardComponent implements OnInit {
       r.prenomClient.toLowerCase().includes(q) ||
       (r.telephoneClient?.toLowerCase().includes(q) ?? false)
     );
-    return [...list].sort((a, b) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
+    return [...list].sort((a, b) => new Date(b.dateDebut).getTime() - new Date(a.dateDebut).getTime());
   });
 
   totalRdv      = computed(() => this.rendezVous().length);
@@ -136,12 +156,14 @@ export class EmployeeDashboardComponent implements OnInit {
   rdvConfirme  = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
   rdvAnnule    = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.ANNULE).length);
   rdvTermine   = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.TERMINE).length);
-  rdvMariage   = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvMariage            = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvMariageAvecServices = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
 
   constructor(
     public authService: AuthService,
     private profileService: ProfileService,
-    private rendezVousService: RendezVousService
+    private rendezVousService: RendezVousService,
+    private stockService: StockService
   ) {}
 
   ngOnInit() {
@@ -156,7 +178,7 @@ export class EmployeeDashboardComponent implements OnInit {
         this.profile.set(data);
         this.profileForm = {
           telephone: data.telephone ?? '',
-          specialite: data.specialite ?? '',
+          specialites: data.specialites ? [...data.specialites] : [],
           nombresExperiences: data.nombresExperiences
         };
         this.loading.set(false);
@@ -167,11 +189,11 @@ export class EmployeeDashboardComponent implements OnInit {
           this.profile.set({
             id: 0, nom: user.nom, prenom: user.prenom, email: user.email,
             telephone: '', role: user.role, activated: user.activated,
-            specialite: user.specialite, nombresExperiences: user.nombresExperiences
+            specialites: user.specialites, nombresExperiences: user.nombresExperiences
           });
           this.profileForm = {
             telephone: '',
-            specialite: user.specialite ?? '',
+            specialites: user.specialites ? [...user.specialites] : [],
             nombresExperiences: user.nombresExperiences
           };
         }
@@ -231,12 +253,58 @@ export class EmployeeDashboardComponent implements OnInit {
     });
   }
 
+  toggleSpecialite(value: string) {
+    const current = this.profileForm.specialites ?? [];
+    const idx = current.indexOf(value);
+    if (idx >= 0) {
+      this.profileForm.specialites = current.filter(s => s !== value);
+    } else {
+      this.profileForm.specialites = [...current, value];
+    }
+  }
+
+  isSpecialiteSelected(value: string): boolean {
+    return (this.profileForm.specialites ?? []).includes(value);
+  }
+
   // ── Planning methods ──────────────────────────────────────────
   setTab(tab: Tab) {
     this.activeTab.set(tab);
-    if (tab === 'planning' && this.rendezVous().length === 0) {
-      this.loadRendezVous();
+    if (tab === 'planning') {
+      if (this.rendezVous().length === 0) {
+        this.loadRendezVous();
+      }
+    } else if (tab === 'stock') {
+      this.loadStock();
     }
+  }
+
+  loadStock() {
+    this.stockLoading.set(true);
+    this.stockError.set('');
+    this.stockService.getAllProduitsEmployee().subscribe({
+      next: (data) => {
+        this.produits.set(data);
+        this.stockLoading.set(false);
+      },
+      error: (err) => {
+        this.stockLoading.set(false);
+        this.produits.set([]);
+        this.stockError.set(err?.error?.message ?? 'Impossible de charger la liste des produits.');
+      }
+    });
+  }
+
+  decrementerStock(produit: ProduitStockDto) {
+    this.stockService.decrementeQuantite(produit.id).subscribe({
+      next: (updated) => {
+        this.produits.update(list => list.map(p => p.id === updated.id ? updated : p));
+      },
+      error: (err) => {
+        this.error.set(err?.error?.message ?? 'Erreur lors de la mise à jour du stock.');
+        setTimeout(() => this.error.set(''), 4000);
+      }
+    });
   }
 
   loadRendezVous() {
@@ -290,6 +358,15 @@ export class EmployeeDashboardComponent implements OnInit {
       DEPOSE_VERNIS: 'Dépose vernis', MAQUILLAGE: 'Maquillage'
     };
     return map[ts] ?? String(ts);
+  }
+
+  formatDuree(minutes: number): string {
+    if (!minutes) return '—';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}min`;
+    if (m === 0) return `${h}h`;
+    return `${h}h${m.toString().padStart(2, '0')}`;
   }
 
   formatDate(dateStr: string): string {

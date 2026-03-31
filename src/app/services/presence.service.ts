@@ -6,7 +6,7 @@ import { PresenceResponse } from '../models/auth.models';
 @Injectable({ providedIn: 'root' })
 export class PresenceService {
 
-  private readonly BASE_URL = 'http://localhost:9090/api/receptionist';
+  private readonly BASE_URL = 'http://localhost:9091/api/receptionist';
 
   constructor(private http: HttpClient) {}
 

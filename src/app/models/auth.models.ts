@@ -153,7 +153,7 @@ export interface RegisterRequest {
   telephone?: string;
   password: string;
   role: Role;
-  specialite?: string;
+  specialites?: string[];
   nombresExperiences?: number;
 }
 
@@ -169,7 +169,7 @@ export interface AuthResponse {
   prenom: string;
   role: Role;
   activated: boolean;
-  specialite?: string;
+  specialites?: string[];
   nombresExperiences?: number;
   message: string;
 }
@@ -182,7 +182,7 @@ export interface UserDto {
   telephone?: string;
   role: Role;
   activated: boolean;
-  specialite?: string;
+  specialites?: string[];
   nombresExperiences?: number;
 }
 
@@ -193,8 +193,6 @@ export interface UpdateUserRequest {
   telephone?: string;
   password?: string;
   role?: Role;
-  specialite?: string;
-  nombresExperiences?: number;
 }
 
 export interface UpdateProfileRequest {
@@ -202,7 +200,7 @@ export interface UpdateProfileRequest {
   prenom?: string;
   email?: string;
   telephone?: string;
-  specialite?: string;
+  specialites?: string[];
   nombresExperiences?: number;
   currentPassword?: string;
   newPassword?: string;
@@ -284,6 +282,13 @@ export interface PresenceResponse {
   heuresTravaillees?: number;
 }
 
+export type TypeOffre = 'SERVICE_GRATUIT' | 'PROMO_PROCHAIN_SERVICE';
+
+export interface OffreUtiliseeDto {
+  typeOffre: TypeOffre;
+  dateUtilisation: string; // ISO datetime
+}
+
 export interface ClienteFideliteDto {
   nomClient: string;
   prenomClient: string;
@@ -296,6 +301,10 @@ export interface ClienteFideliteDto {
   servicesVersProchainOffre: number;
   /** ISO date string du premier RDV terminé */
   clientDepuis: string;
+  /** Mois de référence "yyyy-MM" */
+  moisAnnee: string;
+  /** Détail des offres utilisées ce mois-ci */
+  offresUtiliseesDetails: OffreUtiliseeDto[];
 }
 
 // ── Stock ──────────────────────────────────────────────────────
@@ -327,6 +336,7 @@ export interface ProduitStockDto {
   quantiteMinimum: number;
   unite: string;
   prixUnitaire: number;
+  nomFournisseur: string | null;
   enAlerte: boolean;
   createdAt: string;
   updatedAt: string;
@@ -339,4 +349,22 @@ export interface ProduitStockRequest {
   quantiteMinimum: number;
   unite: string;
   prixUnitaire: number | null;
+  nomFournisseur: string;
+}
+
+// ── Avis Clientes ───────────────────────────────────────────────
+export interface AvisClienteDto {
+  id: number;
+  rendezVousId: number;
+  nomClient: string;
+  prenomClient: string;
+  telephoneClient: string | null;
+  note: number;
+  commentaire: string | null;
+  createdAt: string;
+}
+
+export interface AvisClienteRequest {
+  note: number;
+  commentaire: string;
 }

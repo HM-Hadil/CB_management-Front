@@ -1145,3 +1145,11 @@ $text-light-local: var(--text-light);
   &--retard  { background: $pres-gold-bg;   color: $pres-gold;   .pres-badge__dot { background: #f59e0b;      } }
   &--termine { background: $pres-purple-bg; color: $pres-purple; .pres-badge__dot { background: $pres-purple; } }
 }
+
+.service-code-robe {
+  font-size: 0.72rem;
+  color: #be185d;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}

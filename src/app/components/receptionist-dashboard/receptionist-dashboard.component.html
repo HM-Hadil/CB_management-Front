@@ -614,6 +614,7 @@
                     <th>Mariée</th>
                     <th>Statut</th>
                     <th>Services Mariée</th>
+                    <th>Code Robe</th>
                     <th>Services Normaux</th>
                     <th>Rendez-vous</th>
                     <th>Actions</th>
@@ -659,10 +660,17 @@
                                 @if (srv.datePrevue) {
                                   <span class="service-date"><i class="pi pi-calendar"></i> {{ formatDate(srv.datePrevue) }}</span>
                                 }
-                                @if (srv.codeRobe) {
-                                  <span class="service-code-robe"><i class="pi pi-tag"></i> {{ srv.codeRobe }}</span>
-                                }
                               </div>
+                            }
+                          }
+                        </div>
+                      </td>
+                      <!-- Code Robe -->
+                      <td>
+                        <div class="services-list">
+                          @for (srv of rdv.services; track srv.id) {
+                            @if (srv.codeRobe) {
+                              <span class="service-code-robe"><i class="pi pi-tag"></i> {{ srv.codeRobe }}</span>
                             }
                           }
                         </div>
@@ -1164,19 +1172,12 @@
                               @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
                               @else { <i class="pi pi-sign-in"></i> } Arrivée
                             </button>
-                          } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && !p.heureDepart) {
+                          } @else if (p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) {
                             <button class="pres-btn pres-btn--depart"
                               [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
                               (click)="marquerDepart(p.employeeId)">
                               @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
-                              @else { <i class="pi pi-sign-out"></i> } Commencer
-                            </button>
-                          } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && p.heureDepart) {
-                            <button class="pres-btn pres-btn--terminer"
-                              [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
-                              (click)="terminerPresence(p.employeeId)">
-                              @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
-                              @else { <i class="pi pi-flag"></i> } Terminer
+                              @else { <i class="pi pi-sign-out"></i> } Départ
                             </button>
                           } @else {
                             <span class="pres-done"><i class="pi pi-check-circle"></i> Terminé</span>
@@ -1232,21 +1233,14 @@
                           [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
                           (click)="marquerArrivee(p.employeeId)">
                           @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
-                          @else { <i class="pi pi-sign-in"></i> } Marquer arrivée
+                          @else { <i class="pi pi-sign-in"></i> } Arrivée
                         </button>
-                      } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && !p.heureDepart) {
+                      } @else if (p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) {
                         <button class="pres-btn pres-btn--depart pres-btn--full"
                           [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
                           (click)="marquerDepart(p.employeeId)">
                           @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
-                          @else { <i class="pi pi-sign-out"></i> } Commencer
-                        </button>
-                      } @else if ((p.statut === StatutPresence.PRESENT || p.statut === StatutPresence.RETARD) && p.heureDepart) {
-                        <button class="pres-btn pres-btn--terminer pres-btn--full"
-                          [disabled]="presenceActionLoading() === p.employeeId || !isToday(presenceSelectedDate())"
-                          (click)="terminerPresence(p.employeeId)">
-                          @if (presenceActionLoading() === p.employeeId) { <i class="pi pi-spin pi-spinner"></i> }
-                          @else { <i class="pi pi-flag"></i> } Terminer la journée
+                          @else { <i class="pi pi-sign-out"></i> } Départ
                         </button>
                       } @else {
                         <span class="pres-done"><i class="pi pi-check-circle"></i> Journée terminée</span>
@@ -1534,6 +1528,7 @@
               <input type="tel" [(ngModel)]="rdvForm.telephoneClient"
                 class="modal-input" placeholder="xx xxx xxx" maxlength="8" />
             </div>
+            @if (rdvModalMode() === 'create') {
             <div class="modal-form-group">
               <label>Type de client *</label>
               <div class="type-client-toggle">
@@ -1549,6 +1544,7 @@
                 </button>
               </div>
             </div>
+            }
           </div>
         </div>
 
@@ -1747,8 +1743,8 @@
                             @for (slot of TIME_SLOTS; track slot) {
                               <button type="button" class="time-slot"
                                 [class.time-slot--selected]="srv.heure === slot"
-                                [class.time-slot--blocked]="isSlotBooked(srv.employeeId, srv.date, slot)"
-                                [disabled]="isSlotBooked(srv.employeeId, srv.date, slot)"
+                                [class.time-slot--blocked]="isSlotBooked(srv.employeeId, srv.date, slot, undefined, i)"
+                                [disabled]="isSlotBooked(srv.employeeId, srv.date, slot, undefined, i)"
                                 (click)="selectNormaleMarieeSrvTime(i, slot)">
                                 {{ slot }}
                               </button>
@@ -1866,8 +1862,8 @@
                             @for (slot of TIME_SLOTS; track slot) {
                               <button type="button" class="time-slot"
                                 [class.time-slot--selected]="srv.heure === slot"
-                                [class.time-slot--blocked]="isSlotBooked(srv.employeeId, srv.date, slot)"
-                                [disabled]="isSlotBooked(srv.employeeId, srv.date, slot)"
+                                [class.time-slot--blocked]="isSlotBooked(srv.employeeId, srv.date, slot, i)"
+                                [disabled]="isSlotBooked(srv.employeeId, srv.date, slot, i)"
                                 (click)="selectNormalServiceTime(i, slot)">
                                 {{ slot }}
                               </button>

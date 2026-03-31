@@ -485,6 +485,7 @@
                   <th>Client</th>
                   <th>Type</th>
                   <th>Services & Employées</th>
+                  <th>Code Robe</th>
                   <th>Date début</th>
                   <th>Durée</th>
                   <th>Statut</th>
@@ -533,6 +534,15 @@
                           </div>
                         }
                       </div>
+                    </td>
+
+                    <!-- Code Robe -->
+                    <td>
+                      @for (srv of rdv.services; track srv.id) {
+                        @if (srv.codeRobe) {
+                          <span class="service-code-robe"><i class="pi pi-tag"></i> {{ srv.codeRobe }}</span>
+                        }
+                      }
                     </td>
 
                     <!-- Date -->

@@ -407,22 +407,7 @@ export class ReceptionistDashboardComponent implements OnInit {
     });
   }
 
-  terminerPresence(employeeId: number) {
-    this.presenceActionLoading.set(employeeId);
-    this.presenceService.terminer(employeeId).subscribe({
-      next: (updated) => {
-        this.presences.update(list => list.map(p => p.employeeId === employeeId ? updated : p));
-        this.presenceActionLoading.set(null);
-        this.showToast('Journée terminée avec succès.', 'success');
-      },
-      error: (err) => {
-        this.presenceActionLoading.set(null);
-        this.showToast(err?.error?.message ?? 'Erreur lors du marquage.', 'error');
-      }
-    });
-  }
-
-  getPresenceStatutLabel(s: StatutPresence): string {
+getPresenceStatutLabel(s: StatutPresence): string {
     const map: Record<StatutPresence, string> = {
       ABSENT: 'Absent', PRESENT: 'Présent', RETARD: 'Retard', TERMINE: 'Terminé'
     };
@@ -790,10 +775,20 @@ export class ReceptionistDashboardComponent implements OnInit {
   }
 
   newServiceRow(): ServiceFormRow {
-    const lastDate = this.rdvForm.services.length > 0
-      ? this.rdvForm.services[this.rdvForm.services.length - 1].date
-      : '';
-    return { typeService: '', date: lastDate, heure: '', dureeMinutes: 60, employeeId: null, availableEmployees: [], loadingEmployees: false };
+    const services = this.rdvForm.services;
+    let lastDate = '';
+    let nextHeure = '';
+    if (services.length > 0) {
+      const last = services[services.length - 1];
+      lastDate = last.date;
+      if (last.heure && last.dureeMinutes) {
+        const endMin = this.timeToMinutes(last.heure) + last.dureeMinutes;
+        const h = Math.floor(endMin / 60);
+        const m = endMin % 60;
+        if (h < 24) nextHeure = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      }
+    }
+    return { typeService: '', date: lastDate, heure: nextHeure, dureeMinutes: 60, employeeId: null, availableEmployees: [], loadingEmployees: false };
   }
 
   addServiceRow() {
@@ -874,9 +869,9 @@ export class ReceptionistDashboardComponent implements OnInit {
         this.closeRdvModal();
         this.showToast('Rendez-vous créé avec succès !', 'success');
       },
-      error: (err: Error) => {
+      error: (err: any) => {
         this.rdvModalLoading.set(false);
-        this.rdvModalError.set(err.message ?? 'Erreur lors de la création.');
+        this.rdvModalError.set(err.error?.message ?? err.message ?? 'Erreur lors de la création.');
       }
     });
   }
@@ -896,9 +891,9 @@ export class ReceptionistDashboardComponent implements OnInit {
         this.closeRdvModal();
         this.showToast('Rendez-vous modifié avec succès !', 'success');
       },
-      error: (err: Error) => {
+      error: (err: any) => {
         this.rdvModalLoading.set(false);
-        this.rdvModalError.set(err.message ?? 'Erreur lors de la modification.');
+        this.rdvModalError.set(err.error?.message ?? err.message ?? 'Erreur lors de la modification.');
       }
     });
   }
@@ -925,7 +920,7 @@ export class ReceptionistDashboardComponent implements OnInit {
         const dt = new Date(`${s.date}T${s.heure}:00`);
         allDates.push(dt);
         services.push({
-          employeeId: s.employeeId,
+          employeeId: s.employeeId ? Number(s.employeeId) : null,
           typeService: s.typeService as TypeService,
           datePrevue: `${s.date}T${s.heure}:00`,
           dureeService: s.dureeMinutes
@@ -987,6 +982,23 @@ export class ReceptionistDashboardComponent implements OnInit {
         if (!s.date || !s.heure) { this.rdvModalError.set('Renseignez date et heure pour chaque service normal.'); return false; }
         if (!s.employeeId) { this.rdvModalError.set('Sélectionnez une employée pour chaque service normal.'); return false; }
       }
+      // Check conflicts between normaleServices (same employee, overlapping times)
+      for (let i = 0; i < this.rdvForm.normaleServices.length; i++) {
+        for (let j = i + 1; j < this.rdvForm.normaleServices.length; j++) {
+          const a = this.rdvForm.normaleServices[i];
+          const b = this.rdvForm.normaleServices[j];
+          if (!a.employeeId || a.employeeId !== b.employeeId) continue;
+          if (a.date !== b.date || !a.heure || !b.heure) continue;
+          const aStart = this.timeToMinutes(a.heure);
+          const aEnd = aStart + (a.dureeMinutes ?? 60);
+          const bStart = this.timeToMinutes(b.heure);
+          const bEnd = bStart + (b.dureeMinutes ?? 60);
+          if (aStart < bEnd && bStart < aEnd) {
+            this.rdvModalError.set(`Conflit : les services normaux ${i + 1} et ${j + 1} ont la même employée avec des horaires qui se chevauchent.`);
+            return false;
+          }
+        }
+      }
       return true;
     }
 
@@ -998,6 +1010,23 @@ export class ReceptionistDashboardComponent implements OnInit {
       if (!srv.date || !srv.heure) { this.rdvModalError.set('Renseignez la date et l\'heure pour chaque service.'); return false; }
       if (!srv.dureeMinutes || srv.dureeMinutes < 1) { this.rdvModalError.set('La durée doit être d\'au moins 1 minute pour chaque service.'); return false; }
       if (!srv.employeeId) { this.rdvModalError.set('Sélectionnez une employée pour chaque service.'); return false; }
+    }
+    // Check for conflicts between services within the same RDV
+    for (let i = 0; i < this.rdvForm.services.length; i++) {
+      for (let j = i + 1; j < this.rdvForm.services.length; j++) {
+        const a = this.rdvForm.services[i];
+        const b = this.rdvForm.services[j];
+        if (!a.employeeId || a.employeeId !== b.employeeId) continue;
+        if (a.date !== b.date || !a.heure || !b.heure) continue;
+        const aStart = this.timeToMinutes(a.heure);
+        const aEnd = aStart + (a.dureeMinutes ?? 60);
+        const bStart = this.timeToMinutes(b.heure);
+        const bEnd = bStart + (b.dureeMinutes ?? 60);
+        if (aStart < bEnd && bStart < aEnd) {
+          this.rdvModalError.set(`Conflit : les services ${i + 1} et ${j + 1} ont la même employée avec des horaires qui se chevauchent.`);
+          return false;
+        }
+      }
     }
     return true;
   }
@@ -1164,7 +1193,20 @@ export class ReceptionistDashboardComponent implements OnInit {
   }
 
   newNormaleServiceMarieeRow(): NormaleServiceMarieeRow {
-    return { typeService: '', date: '', heure: '', dureeMinutes: 60,
+    const services = this.rdvForm.normaleServices;
+    let lastDate = '';
+    let nextHeure = '';
+    if (services.length > 0) {
+      const last = services[services.length - 1];
+      lastDate = last.date;
+      if (last.heure && last.dureeMinutes) {
+        const endMin = this.timeToMinutes(last.heure) + last.dureeMinutes;
+        const h = Math.floor(endMin / 60);
+        const m = endMin % 60;
+        if (h < 24) nextHeure = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      }
+    }
+    return { typeService: '', date: lastDate, heure: nextHeure, dureeMinutes: 60,
              employeeId: null, availableEmployees: [], loadingEmployees: false };
   }
 
@@ -1221,7 +1263,13 @@ export class ReceptionistDashboardComponent implements OnInit {
       : this.rendezVousService.getEmployesParSpecialite(specialite);
 
     requestUpdater.subscribe({
-      next: (emps) => { row.availableEmployees = emps; row.loadingEmployees = false; },
+      next: (emps) => {
+        row.availableEmployees = emps;
+        row.loadingEmployees = false;
+        if (row.employeeId && !emps.some(e => e.id === row.employeeId)) {
+          row.employeeId = null;
+        }
+      },
       error: () => { row.availableEmployees = []; row.loadingEmployees = false; }
     });
   }
@@ -1256,10 +1304,12 @@ export class ReceptionistDashboardComponent implements OnInit {
     return h * 60 + m;
   }
 
-  isSlotBooked(employeeId: number | null, date: string, slotTime: string): boolean {
+  isSlotBooked(employeeId: number | null, date: string, slotTime: string, excludeFormIndex?: number, excludeMarieeIndex?: number): boolean {
     if (!employeeId || !date || !slotTime) return false;
     const slotMin = this.timeToMinutes(slotTime);
     const currentRdvId = this.selectedRdv()?.id;
+
+    // Check existing saved appointments
     for (const rdv of this.rendezVous()) {
       if (rdv.statut === StatutRendezVous.ANNULE || rdv.statut === StatutRendezVous.TERMINE) continue;
       if (currentRdvId && rdv.id === currentRdvId) continue;
@@ -1271,6 +1321,27 @@ export class ReceptionistDashboardComponent implements OnInit {
         if (slotMin >= startMin && slotMin < endMin) return true;
       }
     }
+
+    // Check other services in the current normal form
+    for (let j = 0; j < this.rdvForm.services.length; j++) {
+      if (j === excludeFormIndex) continue;
+      const other = this.rdvForm.services[j];
+      if (other.employeeId !== employeeId || other.date !== date || !other.heure) continue;
+      const startMin = this.timeToMinutes(other.heure);
+      const endMin = startMin + (other.dureeMinutes ?? 60);
+      if (slotMin >= startMin && slotMin < endMin) return true;
+    }
+
+    // Check other normaleServices in the current mariée form
+    for (let j = 0; j < this.rdvForm.normaleServices.length; j++) {
+      if (j === excludeMarieeIndex) continue;
+      const other = this.rdvForm.normaleServices[j];
+      if (other.employeeId !== employeeId || other.date !== date || !other.heure) continue;
+      const startMin = this.timeToMinutes(other.heure);
+      const endMin = startMin + (other.dureeMinutes ?? 60);
+      if (slotMin >= startMin && slotMin < endMin) return true;
+    }
+
     return false;
   }
 
@@ -1283,13 +1354,23 @@ export class ReceptionistDashboardComponent implements OnInit {
   }
 
   selectNormalServiceTime(i: number, time: string) {
-    this.rdvForm.services[i].heure = time;
+    const row = this.rdvForm.services[i];
+    row.heure = time;
     this.closeTimePicker();
+    if (row.typeService && row.date) {
+      row.employeeId = null;
+      row.availableEmployees = [];
+      this.fetchNormalServiceAllEmployees(i);
+    }
   }
 
   selectNormaleMarieeSrvTime(i: number, time: string) {
-    this.rdvForm.normaleServices[i].heure = time;
+    const row = this.rdvForm.normaleServices[i];
+    row.heure = time;
     this.closeTimePicker();
+    if (row.typeService && row.date) {
+      this.fetchNormaleServiceAllMarieeEmployees(i);
+    }
   }
 
   selectMarieeSrvTime(i: number, time: string) {

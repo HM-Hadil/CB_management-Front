@@ -31,7 +31,7 @@ export class StockService {
   }
 
   // ── Employee endpoints ────────────────────────────────────────
-  private readonly EMPLOYEE_URL = 'http://localhost:9090/api/employee/stock';
+  private readonly EMPLOYEE_URL = 'http://localhost:9091/api/employee/stock';
 
   getAllProduitsEmployee(): Observable<ProduitStockDto[]> {
     return this.http.get<ProduitStockDto[]>(this.EMPLOYEE_URL);

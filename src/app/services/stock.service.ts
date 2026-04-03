@@ -40,4 +40,8 @@ export class StockService {
   decrementeQuantite(id: number): Observable<ProduitStockDto> {
     return this.http.patch<ProduitStockDto>(`${this.EMPLOYEE_URL}/${id}/decrementer`, {});
   }
+
+  utiliserProduits(items: { produitId: number; quantite: number }[]): Observable<ProduitStockDto[]> {
+    return this.http.post<ProduitStockDto[]>(`${this.EMPLOYEE_URL}/utiliser`, items);
+  }
 }

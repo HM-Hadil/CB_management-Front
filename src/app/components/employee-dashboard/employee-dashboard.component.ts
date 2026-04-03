@@ -5,20 +5,29 @@ import { AuthService } from '../../services/auth.service';
 import { ProfileService } from '../../services/profile.service';
 import { RendezVousService } from '../../services/rendez-vous.service';
 import { StockService } from '../../services/stock.service';
+import { AvisService } from '../../services/avis.service';
 import {
   UserDto,
   UpdateProfileRequest,
   RendezVousResponse,
   ServiceRendezVousDto,
   StatutRendezVous,
+  StatutService,
   TypeClient,
   TypeService,
+  AvisClienteDto,
   ProduitStockDto,
   CategorieStock,
   CATEGORIE_STOCK_LABELS
 } from '../../models/auth.models';
 
-type Tab = 'profile' | 'password' | 'planning' | 'stock';
+type Tab = 'profile' | 'planning' | 'stock';
+
+interface PlanningServiceRow {
+  rdv: RendezVousResponse;
+  services: ServiceRendezVousDto[];
+  date: string; // YYYY-MM-DD
+}
 
 @Component({
   selector: 'app-employee-dashboard',
@@ -61,6 +70,8 @@ export class EmployeeDashboardComponent implements OnInit {
 
   // ── Planning state ────────────────────────────────────────────
   rendezVous = signal<RendezVousResponse[]>([]);
+  avis = signal<AvisClienteDto[]>([]);
+  private avisNoteMap = computed(() => new Map(this.avis().map(a => [a.rendezVousId, a.note])));
   planningLoading = signal(false);
   filterStatut = signal<StatutRendezVous | 'ALL'>('ALL');
   filterTypeClient = signal<TypeClient | 'ALL' | 'MARIAGE_SERVICES'>('ALL');
@@ -70,7 +81,13 @@ export class EmployeeDashboardComponent implements OnInit {
 
   // ── Stock state ────────────────────────────────────────────────
   produits = signal<ProduitStockDto[]>([]);
-  stockLoading = signal(false);  stockError = signal('');  stockSearchQuery = signal('');
+  stockLoading = signal(false);
+  stockConfirmLoading = signal(false);
+  stockError = signal('');
+  stockSuccess = signal('');
+  stockSearchQuery = signal('');
+  /** Record<produitId, quantiteUtilisee> — only selected products appear here */
+  selectedProduits = signal<Record<number, number>>({});
   CATEGORIE_STOCK_LABELS = CATEGORIE_STOCK_LABELS;
 
   filteredProduits = computed(() => {
@@ -79,13 +96,16 @@ export class EmployeeDashboardComponent implements OnInit {
     if (!q) return list;
     return list.filter(p =>
       (p.nom ?? '').toLowerCase().includes(q) ||
-      (p.nomFournisseur ?? '').toLowerCase().includes(q) ||
-      (CATEGORIE_STOCK_LABELS[p.categorie] ?? '').toLowerCase().includes(q)
+      (CATEGORIE_STOCK_LABELS[p.categorie] ?? '').toLowerCase().includes(q) ||
+      (p.reference ?? '').toLowerCase().includes(q)
     );
   });
 
+  selectedCount = computed(() => Object.keys(this.selectedProduits()).length);
+
   // ── Expose enums ──────────────────────────────────────────────
   StatutRendezVous = StatutRendezVous;
+  StatutService = StatutService;
   TypeClient = TypeClient;
 
   // ── Computed planning ─────────────────────────────────────────
@@ -132,6 +152,73 @@ export class EmployeeDashboardComponent implements OnInit {
     return [...list].sort((a, b) => new Date(b.dateDebut).getTime() - new Date(a.dateDebut).getTime());
   });
 
+  expandedPlanningRows = computed((): PlanningServiceRow[] => {
+    const filterDate = this.planningFilterDate();
+    const period = this.viewPeriod();
+    const q = this.planningSearch().toLowerCase().trim();
+    const st = this.filterStatut();
+    const tc = this.filterTypeClient();
+    const myId = this.profile()?.id;
+    const now = new Date();
+
+    let rdvList = this.rendezVous();
+
+    if (st !== 'ALL') rdvList = rdvList.filter(r => r.statut === st);
+    if (tc === TypeClient.NORMAL) rdvList = rdvList.filter(r => r.typeClient === TypeClient.NORMAL);
+    else if (tc === 'MARIAGE_SERVICES') rdvList = rdvList.filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId));
+    if (q) rdvList = rdvList.filter(r =>
+      r.nomClient.toLowerCase().includes(q) ||
+      r.prenomClient.toLowerCase().includes(q) ||
+      (r.telephoneClient?.toLowerCase().includes(q) ?? false)
+    );
+
+    const rows: PlanningServiceRow[] = [];
+
+    for (const rdv of rdvList) {
+      const myServices = myId ? rdv.services.filter(s => s.employeeId === myId) : rdv.services;
+
+      const byDate = new Map<string, ServiceRendezVousDto[]>();
+      if (myServices.length === 0) {
+        byDate.set(rdv.dateDebut.substring(0, 10), []);
+      } else {
+        for (const srv of myServices) {
+          const date = srv.datePrevue ? srv.datePrevue.substring(0, 10) : rdv.dateDebut.substring(0, 10);
+          if (!byDate.has(date)) byDate.set(date, []);
+          byDate.get(date)!.push(srv);
+        }
+      }
+
+      for (const [date, services] of byDate) {
+        let include = false;
+        if (filterDate) {
+          include = date === filterDate;
+        } else {
+          const d = new Date(date + 'T00:00:00');
+          if (period === 'today') {
+            include = d.toDateString() === now.toDateString();
+          } else if (period === 'week') {
+            const day = now.getDay();
+            const diff = day === 0 ? -6 : 1 - day;
+            const mon = new Date(now); mon.setDate(now.getDate() + diff); mon.setHours(0, 0, 0, 0);
+            const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23, 59, 59, 999);
+            include = d >= mon && d <= sun;
+          } else if (period === 'month') {
+            include = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          } else {
+            include = true;
+          }
+        }
+        if (include) rows.push({ rdv, services, date });
+      }
+    }
+
+    return rows.sort((a, b) => {
+      const dateCmp = b.date.localeCompare(a.date);
+      if (dateCmp !== 0) return dateCmp;
+      return b.rdv.dateDebut.localeCompare(a.rdv.dateDebut);
+    });
+  });
+
   totalRdv      = computed(() => this.rendezVous().length);
   rdvAujourdhui = computed(() => {
     const today = new Date().toDateString();
@@ -163,8 +250,21 @@ export class EmployeeDashboardComponent implements OnInit {
     public authService: AuthService,
     private profileService: ProfileService,
     private rendezVousService: RendezVousService,
-    private stockService: StockService
+    private stockService: StockService,
+    private avisService: AvisService
   ) {}
+
+  getRdvNote(rdvId: number): number | null {
+    return this.avisNoteMap().get(rdvId) ?? null;
+  }
+
+  getStarsArray(): number[] { return [1, 2, 3, 4, 5]; }
+
+  hasAssignedServices(rdv: RendezVousResponse): boolean {
+    const employeeId = this.profile()?.id;
+    if (!employeeId) return false;
+    return rdv.services.some(s => s.employeeId === employeeId);
+  }
 
   ngOnInit() {
     this.loadProfile();
@@ -274,6 +374,9 @@ export class EmployeeDashboardComponent implements OnInit {
       if (this.rendezVous().length === 0) {
         this.loadRendezVous();
       }
+      if (this.avis().length === 0) {
+        this.avisService.listerTous().subscribe({ next: (data) => this.avis.set(data), error: () => {} });
+      }
     } else if (tab === 'stock') {
       this.loadStock();
     }
@@ -282,6 +385,7 @@ export class EmployeeDashboardComponent implements OnInit {
   loadStock() {
     this.stockLoading.set(true);
     this.stockError.set('');
+    this.selectedProduits.set({});
     this.stockService.getAllProduitsEmployee().subscribe({
       next: (data) => {
         this.produits.set(data);
@@ -295,14 +399,54 @@ export class EmployeeDashboardComponent implements OnInit {
     });
   }
 
-  decrementerStock(produit: ProduitStockDto) {
-    this.stockService.decrementeQuantite(produit.id).subscribe({
+  isSelected(id: number): boolean {
+    return id in this.selectedProduits();
+  }
+
+  getQteUtilisee(id: number): number {
+    return this.selectedProduits()[id] ?? 1;
+  }
+
+  toggleSelection(produit: ProduitStockDto) {
+    const current = { ...this.selectedProduits() };
+    if (produit.id in current) {
+      delete current[produit.id];
+    } else {
+      current[produit.id] = 1;
+    }
+    this.selectedProduits.set(current);
+  }
+
+  incrementQte(id: number) {
+    const current = { ...this.selectedProduits() };
+    current[id] = (current[id] ?? 1) + 1;
+    this.selectedProduits.set(current);
+  }
+
+  confirmerUtilisation() {
+    const sel = this.selectedProduits();
+    const items = Object.entries(sel).map(([id, quantite]) => ({
+      produitId: Number(id),
+      quantite
+    }));
+    if (items.length === 0) return;
+
+    this.stockConfirmLoading.set(true);
+    this.stockError.set('');
+    this.stockService.utiliserProduits(items).subscribe({
       next: (updated) => {
-        this.produits.update(list => list.map(p => p.id === updated.id ? updated : p));
+        this.produits.update(list =>
+          list.map(p => updated.find(u => u.id === p.id) ?? p)
+        );
+        this.selectedProduits.set({});
+        this.stockConfirmLoading.set(false);
+        this.stockSuccess.set('Utilisation enregistrée avec succès !');
+        setTimeout(() => this.stockSuccess.set(''), 3500);
       },
       error: (err) => {
-        this.error.set(err?.error?.message ?? 'Erreur lors de la mise à jour du stock.');
-        setTimeout(() => this.error.set(''), 4000);
+        this.stockConfirmLoading.set(false);
+        this.stockError.set(err?.error?.message ?? 'Erreur lors de l\'enregistrement.');
+        setTimeout(() => this.stockError.set(''), 5000);
       }
     });
   }
@@ -342,7 +486,7 @@ export class EmployeeDashboardComponent implements OnInit {
   }
 
   getTypeClientLabel(t: TypeClient): string {
-    return t === TypeClient.MARIAGE ? '💍 Mariage' : 'Normal';
+    return t === TypeClient.MARIAGE ? '💍 Mariée' : 'Normal';
   }
 
   getTypeServiceLabel(ts: TypeService | string): string {
@@ -371,7 +515,12 @@ export class EmployeeDashboardComponent implements OnInit {
 
   formatDate(dateStr: string): string {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleString('fr-FR', {
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+    const date = new Date(isDateOnly ? dateStr + 'T00:00:00' : dateStr);
+    if (isDateOnly) {
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    return date.toLocaleString('fr-FR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
@@ -401,6 +550,20 @@ export class EmployeeDashboardComponent implements OnInit {
     });
   }
 
+  commencerService(serviceId: number) {
+    this.rendezVousService.commencerService(serviceId).subscribe({
+      next: (updated) => {
+        this.rendezVous.update(list => list.map(r => r.id === updated.id ? updated : r));
+        this.success.set('Service démarré.');
+        setTimeout(() => this.success.set(''), 3000);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.message ?? 'Erreur lors du démarrage du service.');
+        setTimeout(() => this.error.set(''), 4000);
+      }
+    });
+  }
+
   terminerRdv(rdv: RendezVousResponse) {
     this.rendezVousService.terminerRendezVous(rdv.id).subscribe({
       next: (updated) => {
@@ -410,6 +573,20 @@ export class EmployeeDashboardComponent implements OnInit {
       },
       error: (err) => {
         this.error.set(err?.error?.message ?? 'Erreur lors de la clôture du rendez-vous.');
+        setTimeout(() => this.error.set(''), 4000);
+      }
+    });
+  }
+
+  terminerService(serviceId: number) {
+    this.rendezVousService.terminerService(serviceId).subscribe({
+      next: (updated) => {
+        this.rendezVous.update(list => list.map(r => r.id === updated.id ? updated : r));
+        this.success.set('Service marqué comme terminé.');
+        setTimeout(() => this.success.set(''), 3000);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.message ?? 'Erreur lors de la clôture du service.');
         setTimeout(() => this.error.set(''), 4000);
       }
     });

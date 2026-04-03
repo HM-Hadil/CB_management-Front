@@ -20,10 +20,6 @@
         <i class="pi pi-user-edit"></i>
         <span>Mon Profil</span>
       </button>
-      <button class="nav-item" [class.active]="activeTab() === 'password'" (click)="setTab('password')">
-        <i class="pi pi-lock"></i>
-        <span>Mot de passe</span>
-      </button>
       <button class="nav-item" [class.active]="activeTab() === 'rendez-vous'" (click)="setTab('rendez-vous')">
         <i class="pi pi-calendar"></i>
         <span>Rendez-vous</span>
@@ -70,34 +66,6 @@
 
   <!-- ══ MAIN CONTENT ════════════════════════════════════════════ -->
   <main class="main-content">
-
-    <!-- TOPBAR -->
-    <header class="topbar">
-      <button class="hamburger-btn" (click)="toggleSidebar()" [class.active]="sidebarOpen()" aria-label="Menu">
-        <span></span><span></span><span></span>
-      </button>
-      <div>
-        <h1 class="page-title">
-          @if (activeTab() === 'profile') { Mon Profil }
-          @else if (activeTab() === 'password') { Changer le mot de passe }
-          @else if (activeTab() === 'rendez-vous-mariees') { Rendez-vous Mariées }
-          @else if (activeTab() === 'offres') { Clientes & Offres }
-          @else if (activeTab() === 'stock') { Gestion du Stock }
-          @else if (activeTab() === 'presence') { Gestion de présence }
-          @else if (activeTab() === 'avis') { Retour Clientes }
-          @else { Gestion des Rendez-vous }
-        </h1>
-        <p class="page-sub">
-          @if (activeTab() === 'profile') { Mettez à jour vos informations personnelles }
-          @else if (activeTab() === 'password') { Modifiez votre mot de passe de connexion }
-          @else if (activeTab() === 'rendez-vous-mariees') { Gérer les rendez-vous pour les mariées }
-          @else if (activeTab() === 'offres') { Système de fidélité : 1 service gratuit tous les 5 services }
-          @else if (activeTab() === 'stock') { Gérer les produits, surveiller les niveaux de stock }
-          @else if (activeTab() === 'presence') { Suivez les horaires de votre équipe }
-          @else { Créer, modifier et suivre les rendez-vous }
-        </p>
-      </div>
-    </header>
 
     @if (loading() && activeTab() !== 'rendez-vous') {
       <div class="page-loader">
@@ -156,7 +124,7 @@
               <input type="tel" [(ngModel)]="profileForm.telephone" class="luxury-input" placeholder="xx xxx xxx" maxlength="8" />
             </div>
 
-            @if (error() && activeTab() === 'profile') {
+            @if (error()) {
               <div class="alert alert--error"><i class="pi pi-exclamation-triangle"></i> {{ error() }}</div>
             }
             @if (success()) {
@@ -171,10 +139,8 @@
             </div>
           </div>
         </div>
-      }
 
-      <!-- ══ PASSWORD TAB ══════════════════════════════════════════ -->
-      @if (activeTab() === 'password') {
+        <!-- ── Changer le mot de passe ─────────────────────────── -->
         <div class="form-card">
           <div class="form-card__header">
             <div class="form-card__icon form-card__icon--gold">
@@ -214,13 +180,6 @@
                 <span class="field-error"><i class="pi pi-times-circle"></i> Les mots de passe ne correspondent pas</span>
               }
             </div>
-
-            @if (error() && activeTab() === 'password') {
-              <div class="alert alert--error"><i class="pi pi-exclamation-triangle"></i> {{ error() }}</div>
-            }
-            @if (success()) {
-              <div class="alert alert--success"><i class="pi pi-check-circle"></i> {{ success() }}</div>
-            }
 
             <div class="form-actions">
               <button class="btn-save btn-save--gold" (click)="savePassword()" [disabled]="saveLoading()">
@@ -384,7 +343,7 @@
               <i class="pi pi-spin pi-spinner"></i>
               <span>Chargement des rendez-vous...</span>
             </div>
-          } @else if (filteredRdv().length === 0) {
+          } @else if (expandedRdvRows().length === 0) {
             <div class="table-empty">
               <div class="empty-icon">📅</div>
               <h3>Aucun rendez-vous trouvé</h3>
@@ -404,116 +363,155 @@
                     <th>Services</th>
                     <th>Date & Heure</th>
                     <th>Durée</th>
+                    <th>Code Robe</th>
                     <th>Statut</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (rdv of filteredRdv(); track rdv.id) {
-                    <tr [class.row-annule]="rdv.statut === StatutRendezVous.ANNULE"
-                        [class.row-termine]="rdv.statut === StatutRendezVous.TERMINE">
+                  @for (row of expandedRdvRows(); track row.rdv.id + '-' + row.date) {
+                    <tr [class.row-annule]="row.rdv.statut === StatutRendezVous.ANNULE"
+                        [class.row-termine]="row.rdv.statut === StatutRendezVous.TERMINE">
                       <!-- Client -->
                       <td data-label="Client">
                         <div class="client-cell">
-                          <div class="client-avatar">{{ getClientInitials(rdv) }}</div>
+                          <div class="client-avatar">{{ getClientInitials(row.rdv) }}</div>
                           <div class="client-info">
-                            <span class="client-name">{{ rdv.prenomClient }} {{ rdv.nomClient }}</span>
-                            @if (rdv.telephoneClient) {
-                              <span class="client-phone"><i class="pi pi-phone"></i> {{ rdv.telephoneClient }}</span>
+                            <span class="client-name">{{ row.rdv.prenomClient }} {{ row.rdv.nomClient }}</span>
+                            @if (row.rdv.telephoneClient) {
+                              <span class="client-phone"><i class="pi pi-phone"></i> {{ row.rdv.telephoneClient }}</span>
                             }
                             <span class="client-type-badge"
-                              [class.mariage]="rdv.typeClient === TypeClient.MARIAGE">
-                              {{ getTypeClientLabel(rdv.typeClient) }}
+                              [class.mariage]="row.rdv.typeClient === TypeClient.MARIAGE">
+                              {{ getTypeClientLabel(row.rdv.typeClient) }}
                             </span>
+                            @if (row.rdv.typeClient === TypeClient.MARIAGE && row.rdv.statutMariee) {
+                              <span class="statut-mariee-badge"
+                                [class.voilee]="row.rdv.statutMariee === StatutMariee.VOILEE">
+                                {{ row.rdv.statutMariee === StatutMariee.VOILEE ? 'Voilée' : 'Non voilée' }}
+                              </span>
+                            }
                           </div>
                         </div>
                       </td>
 
-                      <!-- Services -->
+                      <!-- Services du jour -->
                       <td data-label="Services">
                         <div class="services-list">
-                          @for (srv of rdv.services; track srv.id) {
+                          @for (srv of row.services; track srv.id) {
                             <div class="service-item">
                               <span class="service-name">{{ getTypeServiceLabel(srv.typeService) }}</span>
-                              <span class="service-employee">
-                                <i class="pi pi-user"></i> {{ srv.employeePrenom }} {{ srv.employeeNom }}
-                              </span>
+                              @if (srv.employeeNom) {
+                                <span class="service-employee">
+                                  <i class="pi pi-user"></i> {{ srv.employeePrenom }} {{ srv.employeeNom }}
+                                </span>
+                              }
                             </div>
+                          }
+                          @if (row.services.length === 0) {
+                            <span class="text-muted">—</span>
                           }
                         </div>
                       </td>
 
-                      <!-- Date par service -->
+                      <!-- Date -->
                       <td data-label="Date & Heure">
+                        <span class="service-date">
+                          <i class="pi pi-calendar"></i> {{ formatDate(row.date) }}
+                        </span>
+                      </td>
+
+                      <!-- Durée par service -->
+                      <td data-label="Durée">
                         <div class="services-list">
-                          @for (srv of rdv.services; track srv.id) {
-                            <div class="service-item">
-                              <span class="service-date">
-                                <i class="pi pi-calendar"></i> {{ formatDate(srv.datePrevue ?? rdv.dateDebut) }}
-                              </span>
-                            </div>
+                          @for (srv of row.services; track srv.id) {
+                            <span class="duree-badge">
+                              <i class="pi pi-clock"></i> {{ formatDuree(srv.dureeService ?? 0) }}
+                            </span>
                           }
+                          @if (row.services.length === 0) { <span class="text-muted">—</span> }
                         </div>
                       </td>
 
-                      <!-- Durée -->
-                      <td data-label="Durée">
-                        <span class="duree-badge">
-                          <i class="pi pi-clock"></i>
-                          {{ formatDuree(rdv.dureeMinutes) }}
-                        </span>
+                      <!-- Code Robe -->
+                      <td data-label="Code Robe">
+                        @for (srv of row.services; track srv.id) {
+                          @if (srv.codeRobe) {
+                            <span class="service-code-robe"><i class="pi pi-tag"></i> {{ srv.codeRobe }}</span>
+                          }
+                        }
                       </td>
 
                       <!-- Statut -->
                       <td data-label="Statut">
-                        <span [class]="'statut-badge statut-badge--' + getStatutClass(rdv.statut)">
-                          {{ getStatutLabel(rdv.statut) }}
+                        <span [class]="'statut-badge statut-badge--' + getStatutClass(row.rdv.statut)">
+                          {{ getStatutLabel(row.rdv.statut) }}
                         </span>
+                        @if (getRdvNote(row.rdv.id); as note) {
+                          <div class="rdv-stars-row">
+                            @for (s of getStarsArray(note); track s) {
+                              <i [class]="s <= note ? 'pi pi-star-fill star-filled' : 'pi pi-star star-empty'"></i>
+                            }
+                            <span class="rdv-note-val">{{ note }}/5</span>
+                          </div>
+                        }
                       </td>
 
                       <!-- Actions -->
                       <td data-label="Actions">
                         <div class="action-btns">
-                          @if (canEdit(rdv)) {
-                            <button class="action-btn action-btn--edit" (click)="openEditModal(rdv)" title="Modifier">
+                          @if (canEdit(row.rdv)) {
+                            <button class="action-btn action-btn--edit" (click)="openEditModal(row.rdv)" title="Modifier">
                               <i class="pi pi-pencil"></i>
                             </button>
                           }
-                          @if (rdv.statut === StatutRendezVous.EN_ATTENTE) {
-                            <button class="action-btn action-btn--confirm"
-                              (click)="changerStatut(rdv.id, StatutRendezVous.CONFIRME)"
-                              title="Confirmer">
-                              <i class="pi pi-check"></i>
-                            </button>
+                          <!-- Service-specific actions -->
+                          @for (srv of row.services; track srv.id) {
+                            <div class="service-actions">
+                              <div class="service-btns">
+                                @if (srv.statut === StatutService.EN_ATTENTE) {
+                                  <button class="action-btn action-btn--confirm action-btn--small"
+                                    (click)="changerStatutService(srv.id, StatutService.CONFIRME)"
+                                    title="Confirmer ce service">
+                                    <i class="pi pi-check"></i>
+                                  </button>
+                                }
+                                @if (srv.statut !== StatutService.ANNULE && srv.statut !== StatutService.TERMINE) {
+                                  <button class="action-btn action-btn--cancel action-btn--small"
+                                    (click)="changerStatutService(srv.id, StatutService.ANNULE)"
+                                    title="Annuler ce service">
+                                    <i class="pi pi-times"></i>
+                                  </button>
+                                }
+                              </div>
+                            </div>
                           }
-                          @if (rdv.statut === StatutRendezVous.CONFIRME || rdv.statut === StatutRendezVous.EN_COURS) {
-                            <button class="action-btn action-btn--finish"
-                              (click)="changerStatut(rdv.id, StatutRendezVous.TERMINE)"
-                              title="Terminer">
-                              <i class="pi pi-flag"></i>
-                            </button>
-                          }
-                          @if (rdv.statut !== StatutRendezVous.ANNULE && rdv.statut !== StatutRendezVous.TERMINE) {
-                            <button class="action-btn action-btn--cancel"
-                              (click)="changerStatut(rdv.id, StatutRendezVous.ANNULE)"
-                              title="Annuler">
-                              <i class="pi pi-times"></i>
-                            </button>
-                          }
-                          @if (rdv.statut === StatutRendezVous.TERMINE) {
-                            @if (rdvHasAvis(rdv.id)) {
-                              <button class="action-btn action-btn--avis-done" title="Avis déjà ajouté" disabled>
-                                <i class="pi pi-star-fill"></i>
+                          @if (row.services.length === 0) {
+                            @if (row.rdv.statut === StatutRendezVous.EN_ATTENTE) {
+                              <button class="action-btn action-btn--confirm"
+                                (click)="changerStatut(row.rdv.id, StatutRendezVous.CONFIRME)"
+                                title="Confirmer">
+                                <i class="pi pi-check"></i>
                               </button>
-                            } @else {
+                            }
+                            @if (row.rdv.statut !== StatutRendezVous.ANNULE && row.rdv.statut !== StatutRendezVous.TERMINE) {
+                              <button class="action-btn action-btn--cancel"
+                                (click)="changerStatut(row.rdv.id, StatutRendezVous.ANNULE)"
+                                title="Annuler">
+                                <i class="pi pi-times"></i>
+                              </button>
+                            }
+                          }
+                          @if (row.rdv.statut === StatutRendezVous.TERMINE) {
+                            @if (!rdvHasAvis(row.rdv.id)) {
                               <button class="action-btn action-btn--avis"
-                                (click)="openAddAvisModal(rdv)" title="Ajouter un avis">
+                                (click)="openAddAvisModal(row.rdv)" title="Ajouter un avis">
                                 <i class="pi pi-star"></i>
                               </button>
                             }
                           }
                           <button class="action-btn action-btn--delete"
-                            (click)="confirmDelete(rdv.id)" title="Supprimer">
+                            (click)="confirmDelete(row.rdv.id)" title="Supprimer">
                             <i class="pi pi-trash"></i>
                           </button>
                         </div>
@@ -521,16 +519,16 @@
                     </tr>
 
                     <!-- Delete confirm row -->
-                    @if (deleteConfirmId() === rdv.id) {
+                    @if (deleteConfirmId() === row.rdv.id) {
                       <tr class="confirm-row">
                         <td colspan="6">
                           <div class="confirm-delete">
                             <i class="pi pi-exclamation-triangle"></i>
                             <span>Supprimer définitivement le rendez-vous de
-                              <strong>{{ rdv.prenomClient }} {{ rdv.nomClient }}</strong> ?
+                              <strong>{{ row.rdv.prenomClient }} {{ row.rdv.nomClient }}</strong> ?
                             </span>
                             <div class="confirm-actions">
-                              <button class="confirm-yes" (click)="deleteRdv(rdv.id)">
+                              <button class="confirm-yes" (click)="deleteRdv(row.rdv.id)">
                                 <i class="pi pi-check"></i> Supprimer
                               </button>
                               <button class="confirm-no" (click)="cancelDelete()">
@@ -973,7 +971,8 @@
                     <th>Quantité</th>
                     <th>Qté min</th>
                     <th>Unité</th>
-                    <th>Prix unitaire</th>
+                    <th>Fournisseur</th>
+                    <th>Référence</th>
                     <th>Statut</th>
                     <th>Actions</th>
                   </tr>
@@ -992,7 +991,8 @@
                       </td>
                       <td class="stock-table__qty-min">{{ p.quantiteMinimum }}</td>
                       <td>{{ p.unite }}</td>
-                      <td class="stock-table__prix">{{ p.prixUnitaire | number:'1.2-2' }} DH</td>
+                      <td class="stock-table__fournisseur">{{ p.nomFournisseur || '-' }}</td>
+                      <td class="stock-table__reference">{{ p.reference || '-' }}</td>
                       <td>
                         @if (p.enAlerte) {
                           <span class="statut-badge statut-badge--alerte">
@@ -1057,13 +1057,7 @@
               </div>
               <div class="pres-stat__icon"><i class="pi pi-users"></i></div>
             </div>
-            <div class="pres-stat pres-stat--gold">
-              <div class="pres-stat__left">
-                <span class="pres-stat__value">{{ totalHeures() }}<small>h</small></span>
-                <span class="pres-stat__label">Heures travaillées</span>
-              </div>
-              <div class="pres-stat__icon"><i class="pi pi-clock"></i></div>
-            </div>
+           
           </div>
 
           <!-- Date picker -->
@@ -1442,14 +1436,14 @@
           </div>
         </div>
 
-        <!-- Commentaire -->
+        <!-- Commentaire 
         <div class="modal-form-group">
           <label class="modal-label">Commentaire <span class="modal-optional">(optionnel)</span></label>
           <textarea class="modal-input modal-textarea" rows="4"
             placeholder="Décrivez l'expérience de la cliente..."
             [(ngModel)]="avisForm.commentaire">
           </textarea>
-        </div>
+        </div>-->
 
         @if (avisModalError()) {
           <div class="modal-error">
@@ -1978,15 +1972,15 @@
           </div>
 
           <div class="modal-form-group modal-form-group--full">
-            <label>Prix unitaire (DH) *</label>
-            <input type="number" [(ngModel)]="stockForm.prixUnitaire" class="modal-input" min="0" step="0.01"
-              placeholder="0.00" />
-          </div>
-
-          <div class="modal-form-group modal-form-group--full">
             <label>Nom du fournisseur</label>
             <input type="text" [(ngModel)]="stockForm.nomFournisseur" class="modal-input"
               placeholder="Ex : L'Oréal, Kerastase…" />
+          </div>
+
+          <div class="modal-form-group modal-form-group--full">
+            <label>Référence</label>
+            <input type="text" [(ngModel)]="stockForm.reference" class="modal-input"
+              placeholder="Référence du produit (optionnel)" />
           </div>
         </div>
 

@@ -16,16 +16,7 @@
         <span>Tout le staff</span>
         <span class="nav-badge">{{ users().length }}</span>
       </button>
-      <button class="nav-item" [class.active]="activeTab() === 'employees'" (click)="setTab('employees')">
-        <i class="pi pi-briefcase"></i>
-        <span>Employées</span>
-        <span class="nav-badge">{{ totalEmployees() }}</span>
-      </button>
-      <button class="nav-item" [class.active]="activeTab() === 'receptionists'" (click)="setTab('receptionists')">
-        <i class="pi pi-desktop"></i>
-        <span>Réceptionnistes</span>
-        <span class="nav-badge">{{ totalReception() }}</span>
-      </button>
+ 
       <button class="nav-item" [class.active]="activeTab() === 'rdv'" (click)="setTab('rdv')">
         <i class="pi pi-calendar"></i>
         <span>Rendez-vous</span>
@@ -55,43 +46,6 @@
 
   <!-- ══ MAIN CONTENT ═══════════════════════════════════════════ -->
   <main class="main-content">
-
-    <!-- Top bar -->
-    <header class="topbar">
-      <div class="topbar__left">
-        <button class="menu-toggle" (click)="sidebarOpen.set(!sidebarOpen())">
-          <i class="pi pi-bars"></i>
-        </button>
-        <div>
-          @if (activeTab() === 'rdv') {
-            <h1 class="page-title">Tous les Rendez-vous</h1>
-            <p class="page-sub">Consultation globale — lecture seule</p>
-          } @else if (activeTab() === 'presence') {
-            <h1 class="page-title">Présence du Personnel</h1>
-            <p class="page-sub">Consultation — lecture seule</p>
-          } @else {
-            <h1 class="page-title">Gestion du Personnel</h1>
-            <p class="page-sub">Gérez les comptes employés et réceptionnistes</p>
-          }
-        </div>
-      </div>
-      @if (activeTab() !== 'rdv' && activeTab() !== 'presence') {
-        <button class="btn-create" (click)="openCreateModal()">
-          <i class="pi pi-user-plus"></i>
-          Créer un compte
-        </button>
-      } @else if (activeTab() === 'rdv') {
-        <button class="btn-refresh" (click)="loadAllRdv()" [disabled]="rdvLoading()">
-          <i [class]="rdvLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
-          Actualiser
-        </button>
-      } @else if (activeTab() === 'presence') {
-        <button class="btn-refresh" (click)="loadPresence()" [disabled]="presenceLoading()">
-          <i [class]="presenceLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
-          Actualiser
-        </button>
-      }
-    </header>
 
     <!-- ══ STAFF SECTION (tabs: all / employees / receptionists) ══ -->
     @if (activeTab() !== 'rdv' && activeTab() !== 'presence') {
@@ -451,7 +405,7 @@
           <div class="rdv-active-filters">
             <span class="rdv-results-count">
               <i class="pi pi-filter"></i>
-              {{ filteredRdv().length }} résultat(s)
+              {{ expandedAdminRdvRows().length }} résultat(s)
             </span>
             <button class="rdv-clear-filters" (click)="rdvFilterTypeClient.set('ALL'); rdvFilterStatut.set('ALL'); rdvFilterEmployeeStr.set('ALL'); rdvSearch.set(''); rdvFilterDate.set('')">
               <i class="pi pi-times"></i> Effacer les filtres
@@ -467,7 +421,7 @@
             <i class="pi pi-spin pi-spinner"></i>
             <span>Chargement des rendez-vous...</span>
           </div>
-        } @else if (filteredRdv().length === 0) {
+        } @else if (expandedAdminRdvRows().length === 0) {
           <div class="table-empty">
             <div class="empty-icon">📅</div>
             <h3>Aucun rendez-vous trouvé</h3>
@@ -489,23 +443,23 @@
                   <th>Date début</th>
                   <th>Durée</th>
                   <th>Statut</th>
-                  <th></th>
+              
                 </tr>
               </thead>
               <tbody>
-                @for (rdv of filteredRdv(); track rdv.id) {
-                  <tr [class.inactive-row]="rdv.statut === StatutRendezVous.ANNULE">
+                @for (row of expandedAdminRdvRows(); track row.rdv.id + '-' + row.date) {
+                  <tr [class.inactive-row]="row.rdv.statut === StatutRendezVous.ANNULE">
 
                     <!-- Client -->
                     <td>
                       <div class="user-cell">
-                        <div class="rdv-client-avatar">{{ getClientInitials(rdv) }}</div>
+                        <div class="rdv-client-avatar">{{ getClientInitials(row.rdv) }}</div>
                         <div>
-                          <span class="user-name">{{ rdv.prenomClient }} {{ rdv.nomClient }}</span>
-                          @if (rdv.telephoneClient) {
+                          <span class="user-name">{{ row.rdv.prenomClient }} {{ row.rdv.nomClient }}</span>
+                          @if (row.rdv.telephoneClient) {
                             <span class="user-email">
                               <i class="pi pi-phone" style="font-size:0.65rem; color:var(--gold-500)"></i>
-                              {{ rdv.telephoneClient }}
+                              {{ row.rdv.telephoneClient }}
                             </span>
                           }
                         </div>
@@ -514,15 +468,21 @@
 
                     <!-- Type -->
                     <td>
-                      <span [class]="rdv.typeClient === TypeClient.MARIAGE ? 'rdv-type-badge rdv-type--mariage' : 'rdv-type-badge rdv-type--normal'">
-                        {{ getTypeClientLabel(rdv.typeClient) }}
+                      <span [class]="row.rdv.typeClient === TypeClient.MARIAGE ? 'rdv-type-badge rdv-type--mariage' : 'rdv-type-badge rdv-type--normal'">
+                        {{ getTypeClientLabel(row.rdv.typeClient) }}
                       </span>
+                      @if (row.rdv.typeClient === TypeClient.MARIAGE && row.rdv.statutMariee) {
+                        <span class="statut-mariee-badge"
+                          [class.voilee]="row.rdv.statutMariee === StatutMariee.VOILEE">
+                          {{ row.rdv.statutMariee === StatutMariee.VOILEE ? 'Voilée' : 'Non voilée' }}
+                        </span>
+                      }
                     </td>
 
-                    <!-- Services -->
+                    <!-- Services du jour -->
                     <td>
                       <div class="rdv-services-cell">
-                        @for (srv of rdv.services; track srv.id) {
+                        @for (srv of row.services; track srv.id) {
                           <div class="rdv-service-line">
                             <span class="rdv-svc-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
                             @if (srv.employeeNom) {
@@ -533,12 +493,15 @@
                             }
                           </div>
                         }
+                        @if (row.services.length === 0) {
+                          <span class="text-muted">—</span>
+                        }
                       </div>
                     </td>
 
                     <!-- Code Robe -->
                     <td>
-                      @for (srv of rdv.services; track srv.id) {
+                      @for (srv of row.services; track srv.id) {
                         @if (srv.codeRobe) {
                           <span class="service-code-robe"><i class="pi pi-tag"></i> {{ srv.codeRobe }}</span>
                         }
@@ -549,30 +512,37 @@
                     <td>
                       <span class="rdv-date-cell">
                         <i class="pi pi-calendar"></i>
-                        {{ formatDate(rdv.dateDebut) }}
+                        {{ formatDate(row.date) }}
                       </span>
                     </td>
 
-                    <!-- Durée -->
+                    <!-- Durée par service -->
                     <td>
-                      <span class="rdv-duree-badge">
-                        <i class="pi pi-clock"></i>{{ formatDuree(rdv.dureeMinutes) }}
-                      </span>
+                      <div class="rdv-services-cell">
+                        @for (srv of row.services; track srv.id) {
+                          <span class="rdv-duree-badge">
+                            <i class="pi pi-clock"></i> {{ formatDuree(srv.dureeService ?? 0) }}
+                          </span>
+                        }
+                        @if (row.services.length === 0) { <span class="text-muted">—</span> }
+                      </div>
                     </td>
 
                     <!-- Statut -->
                     <td>
-                      <span [class]="'rdv-statut-badge rdv-statut--' + getStatutClass(rdv.statut)">
-                        {{ getStatutLabel(rdv.statut) }}
+                      <span [class]="'rdv-statut-badge rdv-statut--' + getStatutClass(row.rdv.statut)">
+                        {{ getStatutLabel(row.rdv.statut) }}
                       </span>
+                      @if (getRdvNote(row.rdv.id); as note) {
+                        <div class="rdv-stars-row">
+                          @for (s of getStarsArray(); track s) {
+                            <i [class]="s <= note ? 'pi pi-star-fill star-filled' : 'pi pi-star star-empty'"></i>
+                          }
+                          <span class="rdv-note-val">{{ note }}/5</span>
+                        </div>
+                      }
                     </td>
 
-                    <!-- Action -->
-                    <td>
-                      <button class="action-btn edit" (click)="openRdvDetail(rdv)" title="Voir le détail">
-                        <i class="pi pi-eye"></i>
-                      </button>
-                    </td>
                   </tr>
                 }
               </tbody>
@@ -609,13 +579,7 @@
             </div>
             <div class="pres-stat__icon"><i class="pi pi-users"></i></div>
           </div>
-          <div class="pres-stat pres-stat--gold">
-            <div class="pres-stat__left">
-              <span class="pres-stat__value">{{ totalHeures() }}<small>h</small></span>
-              <span class="pres-stat__label">Heures travaillées</span>
-            </div>
-            <div class="pres-stat__icon"><i class="pi pi-clock"></i></div>
-          </div>
+      
         </div>
 
         <!-- Date picker -->
@@ -701,7 +665,7 @@
                             }
                             @if (p.heuresTravaillees != null) {
                               <span class="pres-chip pres-chip--dur">
-                                <i class="pi pi-hourglass"></i> {{ p.heuresTravaillees }}h
+                                <i class="pi pi-hourglass"></i> {{ formatHeuresTravaillees(p.heuresTravaillees) }}
                               </span>
                             }
                           </div>
@@ -750,7 +714,7 @@
                         <span class="pres-chip pres-chip--out"><i class="pi pi-sign-out"></i> {{ p.heureDepart }}</span>
                       }
                       @if (p.heuresTravaillees != null) {
-                        <span class="pres-chip pres-chip--dur"><i class="pi pi-hourglass"></i> {{ p.heuresTravaillees }}h travaillées</span>
+                        <span class="pres-chip pres-chip--dur"><i class="pi pi-hourglass"></i> {{ formatHeuresTravaillees(p.heuresTravaillees) }} travaillées</span>
                       }
                     </div>
                   } @else {

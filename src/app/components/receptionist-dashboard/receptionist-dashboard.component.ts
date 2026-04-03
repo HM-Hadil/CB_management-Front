@@ -13,11 +13,13 @@ import {
   UpdateProfileRequest,
   RendezVousResponse,
   RendezVousRequest,
+  ServiceRendezVousDto,
   ServiceRendezVousRequest,
   TypeService,
   TypeClient,
   StatutMariee,
   StatutRendezVous,
+  StatutService,
   Specialite,
   TypeServiceGroupeDto,
   ClienteFideliteDto,
@@ -33,8 +35,15 @@ import {
   AvisClienteDto,
   AvisClienteRequest
 } from '../../models/auth.models';
+import { RouterLink } from '@angular/router';
 
-type Tab = 'profile' | 'password' | 'rendez-vous' | 'rendez-vous-mariees' | 'offres' | 'presence' | 'stock' | 'avis';
+type Tab = 'profile' | 'rendez-vous' | 'rendez-vous-mariees' | 'offres' | 'presence' | 'stock' | 'avis';
+
+export interface RdvServiceRow {
+  rdv: RendezVousResponse;
+  services: ServiceRendezVousDto[];
+  date: string; // YYYY-MM-DD
+}
 
 export interface ServiceFormRow {
   typeService: TypeService | '';
@@ -203,7 +212,7 @@ export class ReceptionistDashboardComponent implements OnInit {
   selectedProduit = signal<ProduitStockDto | null>(null);
 
   stockForm: ProduitStockRequest = {
-    nom: '', categorie: '', quantite: 0, quantiteMinimum: 0, unite: '', prixUnitaire: null, nomFournisseur: ''
+    nom: '', categorie: '', quantite: 0, quantiteMinimum: 0, unite: '', nomFournisseur: '', reference: ''
   };
 
   readonly CATEGORIES_STOCK = Object.values(CategorieStock);
@@ -227,6 +236,12 @@ export class ReceptionistDashboardComponent implements OnInit {
 
   rdvHasAvis(rdvId: number): boolean {
     return this.avisRdvIds().has(rdvId);
+  }
+
+  private avisNoteMap = computed(() => new Map(this.avis().map(a => [a.rendezVousId, a.note])));
+
+  getRdvNote(rdvId: number): number | null {
+    return this.avisNoteMap().get(rdvId) ?? null;
   }
 
   filteredAvis = computed(() => {
@@ -268,6 +283,7 @@ export class ReceptionistDashboardComponent implements OnInit {
   TypeClient = TypeClient;
   StatutMariee = StatutMariee;
   StatutRendezVous = StatutRendezVous;
+  StatutService = StatutService;
 
   // ── Computed ──────────────────────────────────────────────────
   private rdvBaseList = computed(() => {
@@ -310,6 +326,69 @@ export class ReceptionistDashboardComponent implements OnInit {
     else if (tc === TypeClient.MARIAGE) list = list.filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId));
     else if (tc === 'MARIAGE_SERVICES') list = list.filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId));
     return list;
+  });
+
+  expandedRdvRows = computed((): RdvServiceRow[] => {
+    const filterDate = this.rdvFilterDate();
+    const period = this.rdvViewPeriod();
+    const q = this.rdvSearchQuery().toLowerCase().trim();
+    const tc = this.rdvTypeFilter();
+    const now = new Date();
+
+    let rdvList = this.rendezVous();
+
+    if (q) rdvList = rdvList.filter(r =>
+      r.nomClient.toLowerCase().includes(q) ||
+      r.prenomClient.toLowerCase().includes(q) ||
+      (r.telephoneClient?.toLowerCase().includes(q) ?? false)
+    );
+    if (tc === TypeClient.NORMAL) rdvList = rdvList.filter(r => r.typeClient === TypeClient.NORMAL);
+    else if (tc === TypeClient.MARIAGE) rdvList = rdvList.filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId));
+    else if (tc === 'MARIAGE_SERVICES') rdvList = rdvList.filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId));
+
+    const rows: RdvServiceRow[] = [];
+
+    for (const rdv of rdvList) {
+      const byDate = new Map<string, ServiceRendezVousDto[]>();
+      if (rdv.services.length === 0) {
+        byDate.set(rdv.dateDebut.substring(0, 10), []);
+      } else {
+        for (const srv of rdv.services) {
+          const date = srv.datePrevue ? srv.datePrevue.substring(0, 10) : rdv.dateDebut.substring(0, 10);
+          if (!byDate.has(date)) byDate.set(date, []);
+          byDate.get(date)!.push(srv);
+        }
+      }
+
+      for (const [date, services] of byDate) {
+        let include = false;
+        if (filterDate) {
+          include = date === filterDate;
+        } else {
+          const d = new Date(date + 'T00:00:00');
+          if (period === 'today') {
+            include = d.toDateString() === now.toDateString();
+          } else if (period === 'week') {
+            const day = now.getDay();
+            const diff = day === 0 ? -6 : 1 - day;
+            const mon = new Date(now); mon.setDate(now.getDate() + diff); mon.setHours(0, 0, 0, 0);
+            const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23, 59, 59, 999);
+            include = d >= mon && d <= sun;
+          } else if (period === 'month') {
+            include = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          } else {
+            include = true;
+          }
+        }
+        if (include) rows.push({ rdv, services, date });
+      }
+    }
+
+    return rows.sort((a, b) => {
+      const dateCmp = b.date.localeCompare(a.date);
+      if (dateCmp !== 0) return dateCmp;
+      return b.rdv.dateDebut.localeCompare(a.rdv.dateDebut);
+    });
   });
 
   totalRdv                    = computed(() => this.rendezVous().length);
@@ -1046,6 +1125,20 @@ getPresenceStatutLabel(s: StatutPresence): string {
     });
   }
 
+  changerStatutService(serviceId: number, statut: StatutService) {
+    this.rendezVousService.changerStatutService(serviceId, statut).subscribe({
+      next: (updated) => {
+        this.rendezVous.update(list => list.map(r => r.id === updated.id ? updated : r));
+        const labels: Record<StatutService, string> = {
+          EN_ATTENTE: 'remis en attente', CONFIRME: 'confirmé',
+          EN_COURS: 'en cours', ANNULE: 'annulé', TERMINE: 'terminé'
+        };
+        this.showToast(`Service ${labels[statut]}.`, 'success');
+      },
+      error: () => this.showToast('Erreur lors du changement de statut du service.', 'error')
+    });
+  }
+
   confirmDelete(id: number) { this.deleteConfirmId.set(id); }
   cancelDelete()            { this.deleteConfirmId.set(null); }
 
@@ -1095,7 +1188,7 @@ getPresenceStatutLabel(s: StatutPresence): string {
   }
 
   getTypeClientLabel(type: TypeClient): string {
-    return type === TypeClient.MARIAGE ? 'Mariage' : 'Normal';
+    return type === TypeClient.MARIAGE ? 'Mariée' : 'Normal';
   }
 
   filterAlpha(event: Event, field: 'nomClient' | 'prenomClient'): void {
@@ -1145,7 +1238,12 @@ getPresenceStatutLabel(s: StatutPresence): string {
 
   formatDate(dateStr: string): string {
     if (!dateStr) return '—';
-    const date = new Date(dateStr);
+    // Pure date (YYYY-MM-DD) — parse as local to avoid UTC-offset issues
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+    const date = new Date(isDateOnly ? dateStr + 'T00:00:00' : dateStr);
+    if (isDateOnly) {
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
     return date.toLocaleString('fr-FR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
@@ -1357,11 +1455,6 @@ getPresenceStatutLabel(s: StatutPresence): string {
     const row = this.rdvForm.services[i];
     row.heure = time;
     this.closeTimePicker();
-    if (row.typeService && row.date) {
-      row.employeeId = null;
-      row.availableEmployees = [];
-      this.fetchNormalServiceAllEmployees(i);
-    }
   }
 
   selectNormaleMarieeSrvTime(i: number, time: string) {
@@ -1388,7 +1481,7 @@ getPresenceStatutLabel(s: StatutPresence): string {
   }
 
   openCreateStockModal() {
-    this.stockForm = { nom: '', categorie: '', quantite: 0, quantiteMinimum: 0, unite: '', prixUnitaire: null, nomFournisseur: '' };
+    this.stockForm = { nom: '', categorie: '', quantite: 0, quantiteMinimum: 0, unite: '', nomFournisseur: '', reference: '' };
     this.stockModalError.set('');
     this.stockModalMode.set('create');
     this.stockModalOpen.set(true);
@@ -1402,8 +1495,8 @@ getPresenceStatutLabel(s: StatutPresence): string {
       quantite: p.quantite,
       quantiteMinimum: p.quantiteMinimum,
       unite: p.unite,
-      prixUnitaire: p.prixUnitaire,
-      nomFournisseur: p.nomFournisseur ?? ''
+      nomFournisseur: p.nomFournisseur ?? '',
+      reference: p.reference ?? ''
     };
     this.stockModalError.set('');
     this.stockModalMode.set('edit');
@@ -1422,7 +1515,6 @@ getPresenceStatutLabel(s: StatutPresence): string {
     if (this.stockForm.quantite < 0) { this.stockModalError.set('La quantité ne peut pas être négative.'); return; }
     if (this.stockForm.quantiteMinimum < 0) { this.stockModalError.set('La quantité minimum ne peut pas être négative.'); return; }
     if (!this.stockForm.unite.trim()) { this.stockModalError.set('L\'unité est obligatoire.'); return; }
-    if (!this.stockForm.prixUnitaire || this.stockForm.prixUnitaire <= 0) { this.stockModalError.set('Le prix unitaire doit être supérieur à 0.'); return; }
 
     this.stockModalLoading.set(true);
     const req = this.stockForm as ProduitStockRequest;

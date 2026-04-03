@@ -5,14 +5,21 @@ import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { RendezVousService } from '../../services/rendez-vous.service';
 import { PresenceService } from '../../services/presence.service';
+import { AvisService } from '../../services/avis.service';
 import {
   UserDto, Role, RegisterRequest, UpdateUserRequest,
-  RendezVousResponse, StatutRendezVous, TypeClient, TypeService,
-  PresenceResponse, StatutPresence
+  RendezVousResponse, ServiceRendezVousDto, StatutRendezVous, StatutMariee, TypeClient, TypeService,
+  AvisClienteDto, PresenceResponse, StatutPresence
 } from '../../models/auth.models';
 
 type Tab = 'all' | 'employees' | 'receptionists' | 'rdv' | 'presence';
 type ModalMode = 'create' | 'edit';
+
+interface AdminRdvRow {
+  rdv: RendezVousResponse;
+  services: ServiceRendezVousDto[];
+  date: string; // YYYY-MM-DD
+}
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -41,6 +48,8 @@ export class AdminDashboardComponent implements OnInit {
 
   // ── RDV State ─────────────────────────────────────────────────
   allRdv = signal<RendezVousResponse[]>([]);
+  avis = signal<AvisClienteDto[]>([]);
+  private avisNoteMap = computed(() => new Map(this.avis().map(a => [a.rendezVousId, a.note])));
   rdvLoading = signal(false);
   rdvFilterStatut = signal<StatutRendezVous | 'ALL'>('ALL');
   rdvFilterTypeClient = signal<TypeClient | 'ALL' | 'MARIAGE_SERVICES'>('ALL');
@@ -148,6 +157,76 @@ export class AdminDashboardComponent implements OnInit {
     return [...list].sort((a, b) => new Date(b.dateDebut).getTime() - new Date(a.dateDebut).getTime());
   });
 
+  expandedAdminRdvRows = computed((): AdminRdvRow[] => {
+    const filterDate = this.rdvFilterDate();
+    const period = this.rdvViewPeriod();
+    const st  = this.rdvFilterStatut();
+    const tc  = this.rdvFilterTypeClient();
+    const emp = this.rdvFilterEmployeeStr();
+    const q   = this.rdvSearch().toLowerCase().trim();
+    const now = new Date();
+
+    let rdvList = this.allRdv();
+
+    if (st !== 'ALL') rdvList = rdvList.filter(r => r.statut === st);
+    if (tc === TypeClient.NORMAL) rdvList = rdvList.filter(r => r.typeClient === TypeClient.NORMAL);
+    else if (tc === TypeClient.MARIAGE) rdvList = rdvList.filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId));
+    else if (tc === 'MARIAGE_SERVICES') rdvList = rdvList.filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId));
+    if (emp !== 'ALL') {
+      const empId = parseInt(emp, 10);
+      rdvList = rdvList.filter(r => r.services.some(s => s.employeeId === empId));
+    }
+    if (q) rdvList = rdvList.filter(r =>
+      r.nomClient.toLowerCase().includes(q) ||
+      r.prenomClient.toLowerCase().includes(q) ||
+      (r.telephoneClient?.toLowerCase().includes(q) ?? false)
+    );
+
+    const rows: AdminRdvRow[] = [];
+
+    for (const rdv of rdvList) {
+      const byDate = new Map<string, ServiceRendezVousDto[]>();
+      if (rdv.services.length === 0) {
+        byDate.set(rdv.dateDebut.substring(0, 10), []);
+      } else {
+        for (const srv of rdv.services) {
+          const date = srv.datePrevue ? srv.datePrevue.substring(0, 10) : rdv.dateDebut.substring(0, 10);
+          if (!byDate.has(date)) byDate.set(date, []);
+          byDate.get(date)!.push(srv);
+        }
+      }
+
+      for (const [date, services] of byDate) {
+        let include = false;
+        if (filterDate) {
+          include = date === filterDate;
+        } else {
+          const d = new Date(date + 'T00:00:00');
+          if (period === 'today') {
+            include = d.toDateString() === now.toDateString();
+          } else if (period === 'week') {
+            const day = now.getDay();
+            const diff = day === 0 ? -6 : 1 - day;
+            const mon = new Date(now); mon.setDate(now.getDate() + diff); mon.setHours(0, 0, 0, 0);
+            const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23, 59, 59, 999);
+            include = d >= mon && d <= sun;
+          } else if (period === 'month') {
+            include = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          } else {
+            include = true;
+          }
+        }
+        if (include) rows.push({ rdv, services, date });
+      }
+    }
+
+    return rows.sort((a, b) => {
+      const dateCmp = b.date.localeCompare(a.date);
+      if (dateCmp !== 0) return dateCmp;
+      return b.rdv.dateDebut.localeCompare(a.rdv.dateDebut);
+    });
+  });
+
   rdvTotalCount      = computed(() => this.allRdv().length);
   rdvAujourdhuiCount = computed(() => {
     const today = new Date().toDateString();
@@ -222,17 +301,34 @@ export class AdminDashboardComponent implements OnInit {
     return Math.round(sum * 100) / 100;
   });
 
+  formatHeuresTravaillees(h: number): string {
+    const totalMin = Math.round(h * 60);
+    const heures = Math.floor(totalMin / 60);
+    const min = totalMin % 60;
+    if (heures === 0) return `${min}min`;
+    if (min === 0) return `${heures}h`;
+    return `${heures}h ${min}min`;
+  }
+
   // ── Enums exposed ────────────────────────────────────────────
   Role = Role;
   StatutRendezVous = StatutRendezVous;
+  StatutMariee = StatutMariee;
   TypeClient = TypeClient;
 
   constructor(
     private userService: UserService,
     public authService: AuthService,
     private rendezVousService: RendezVousService,
-    private presenceService: PresenceService
+    private presenceService: PresenceService,
+    private avisService: AvisService
   ) {}
+
+  getRdvNote(rdvId: number): number | null {
+    return this.avisNoteMap().get(rdvId) ?? null;
+  }
+
+  getStarsArray(): number[] { return [1, 2, 3, 4, 5]; }
 
   ngOnInit() {
     this.loadUsers();
@@ -261,6 +357,7 @@ export class AdminDashboardComponent implements OnInit {
     this.sidebarOpen.set(false);
     if (tab === 'rdv' && this.allRdv().length === 0) {
       this.loadAllRdv();
+      this.avisService.listerTous().subscribe({ next: (data) => this.avis.set(data), error: () => {} });
     }
     if (tab === 'presence') {
       this.loadPresence();
@@ -445,7 +542,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   getTypeClientLabel(t: TypeClient): string {
-    return t === TypeClient.MARIAGE ? '💍 Mariage' : 'Normal';
+    return t === TypeClient.MARIAGE ? '💍 Mariée' : 'Normal';
   }
 
   getTypeServiceLabel(ts: TypeService | string): string {
@@ -465,7 +562,12 @@ export class AdminDashboardComponent implements OnInit {
 
   formatDate(dateStr: string): string {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleString('fr-FR', {
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+    const date = new Date(isDateOnly ? dateStr + 'T00:00:00' : dateStr);
+    if (isDateOnly) {
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    return date.toLocaleString('fr-FR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });

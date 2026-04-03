@@ -821,6 +821,21 @@
   &.rdv-type--mariage { background: #faf5ff; color: #6d28d9; border-color: #e9d5ff; }
 }
 
+.statut-mariee-badge {
+  display: inline-block; margin-top: 4px;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px; font-size: 0.68rem; font-weight: 600;
+  background: #fce7f3; color: #be185d;
+  &.voilee { background: #ede9fe; color: #6d28d9; }
+}
+
+.rdv-stars-row {
+  display: flex; align-items: center; gap: 2px; margin-top: 4px;
+  .star-filled { color: #f59e0b; font-size: 0.75rem; }
+  .star-empty  { color: #d1d5db; font-size: 0.75rem; }
+}
+.rdv-note-val { font-size: 0.68rem; color: #78716c; margin-left: 4px; font-weight: 600; }
+
 .rdv-statut-badge {
   display: inline-block; padding: 0.3rem 0.75rem;
   border-radius: var(--border-radius-full); font-size: 0.75rem; font-weight: 700;

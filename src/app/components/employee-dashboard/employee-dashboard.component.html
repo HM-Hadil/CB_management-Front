@@ -15,10 +15,6 @@
         <i class="pi pi-user-edit"></i>
         <span>Mon Profil</span>
       </button>
-      <button class="nav-item" [class.active]="activeTab() === 'password'" (click)="setTab('password')">
-        <i class="pi pi-lock"></i>
-        <span>Mot de passe</span>
-      </button>
       <button class="nav-item" [class.active]="activeTab() === 'planning'" (click)="setTab('planning')">
         <i class="pi pi-calendar"></i>
         <span>Mon Planning</span>
@@ -28,7 +24,7 @@
       </button>
       <button class="nav-item" [class.active]="activeTab() === 'stock'" (click)="setTab('stock')">
         <i class="pi pi-box"></i>
-        <span>Stock Produits</span>
+        <span>Stock </span>
       </button>
     </nav>
 
@@ -46,23 +42,6 @@
 
   <!-- ══ MAIN CONTENT ════════════════════════════════════════════ -->
   <main class="main-content">
-
-    <header class="topbar">
-      <div>
-        <h1 class="page-title">
-          @if (activeTab() === 'profile') { Mon Profil }
-          @else if (activeTab() === 'password') { Changer le mot de passe }
-          @else if (activeTab() === 'stock') { Stock Produits }
-          @else { Mon Planning }
-        </h1>
-        <p class="page-sub">
-          @if (activeTab() === 'profile') { Mettez à jour vos informations professionnelles }
-          @else if (activeTab() === 'password') { Modifiez votre mot de passe de connexion }
-          @else if (activeTab() === 'stock') { Consultez et signalez la consommation des produits }
-          @else { Consultez vos rendez-vous assignés }
-        </p>
-      </div>
-    </header>
 
     @if (loading() && activeTab() !== 'planning') {
       <div class="page-loader">
@@ -160,7 +139,7 @@
               </div>
             </div>
 
-            @if (error() && activeTab() === 'profile') {
+            @if (error()) {
               <div class="alert alert--error"><i class="pi pi-exclamation-triangle"></i> {{ error() }}</div>
             }
             @if (success()) {
@@ -175,10 +154,8 @@
             </div>
           </div>
         </div>
-      }
 
-      <!-- ══ PASSWORD TAB ══════════════════════════════════════════ -->
-      @if (activeTab() === 'password') {
+        <!-- ── Changer le mot de passe ─────────────────────────── -->
         <div class="form-card">
           <div class="form-card__header">
             <div class="form-card__icon form-card__icon--gold">
@@ -221,13 +198,6 @@
                 <span class="field-error"><i class="pi pi-times-circle"></i> Les mots de passe ne correspondent pas</span>
               }
             </div>
-
-            @if (error() && activeTab() === 'password') {
-              <div class="alert alert--error"><i class="pi pi-exclamation-triangle"></i> {{ error() }}</div>
-            }
-            @if (success()) {
-              <div class="alert alert--success"><i class="pi pi-check-circle"></i> {{ success() }}</div>
-            }
 
             <div class="form-actions">
               <button class="btn-save btn-save--gold" (click)="savePassword()" [disabled]="saveLoading()">
@@ -308,13 +278,7 @@
               <span class="pstat-label">Total RDV</span>
             </div>
           </div>
-          <div class="pstat-card pstat--pink">
-            <div class="pstat-icon"><i class="pi pi-heart"></i></div>
-            <div class="pstat-info">
-              <span class="pstat-value">{{ rdvMariage() }}</span>
-              <span class="pstat-label">RDV Mariée</span>
-            </div>
-          </div>
+       
           <div class="pstat-card pstat--mariage-svc pstat--clickable"
                [class.pstat--selected]="filterTypeClient() === 'MARIAGE_SERVICES'"
                (click)="setFilterTypeClient('MARIAGE_SERVICES')" title="Voir les RDV Mariée avec services assignés">
@@ -364,25 +328,7 @@
             </div>
           </div>
 
-          <!-- Period toggle (synchronisé avec les cartes stats) -->
-          <div class="filter-group">
-            <span class="filter-label">Période :</span>
-            <div class="pill-group">
-              <button class="pill" [class.active]="viewPeriod() === 'today'" (click)="viewPeriod.set('today')">
-                <i class="pi pi-sun"></i> Aujourd'hui
-              </button>
-              <button class="pill" [class.active]="viewPeriod() === 'week'" (click)="viewPeriod.set('week')">
-                <i class="pi pi-calendar-plus"></i> Semaine
-              </button>
-              <button class="pill" [class.active]="viewPeriod() === 'month'" (click)="viewPeriod.set('month')">
-                <i class="pi pi-chart-bar"></i> Mois
-              </button>
-              <button class="pill" [class.active]="viewPeriod() === 'all'" (click)="viewPeriod.set('all')">
-                <i class="pi pi-list"></i> Tous
-              </button>
-            </div>
-          </div>
-
+         
           <!-- Search + date + refresh -->
           <div class="filter-right">
             <div class="planning-search">
@@ -417,7 +363,7 @@
               <i class="pi pi-spin pi-spinner"></i>
               <span>Chargement de votre planning...</span>
             </div>
-          } @else if (filteredPlanning().length === 0) {
+          } @else if (expandedPlanningRows().length === 0) {
             <div class="planning-empty">
               <div class="empty-icon">📅</div>
               <h3>Aucun rendez-vous trouvé</h3>
@@ -436,27 +382,26 @@
                     <th>Client</th>
                     <th>Mon service</th>
                     <th>Date & Heure</th>
-                    <th>Durée</th>
                     <th>Statut</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (rdv of filteredPlanning(); track rdv.id) {
-                    <tr [class.row-muted]="rdv.statut === StatutRendezVous.ANNULE">
+                  @for (row of expandedPlanningRows(); track row.rdv.id + '-' + row.date) {
+                    <tr [class.row-muted]="row.rdv.statut === StatutRendezVous.ANNULE">
                       <!-- Client -->
                       <td>
                         <div class="pclient-cell">
-                          <div class="pclient-avatar">{{ getClientInitials(rdv) }}</div>
+                          <div class="pclient-avatar">{{ getClientInitials(row.rdv) }}</div>
                           <div class="pclient-info">
-                            <span class="pclient-name">{{ rdv.prenomClient }} {{ rdv.nomClient }}</span>
-                            @if (rdv.telephoneClient) {
+                            <span class="pclient-name">{{ row.rdv.prenomClient }} {{ row.rdv.nomClient }}</span>
+                            @if (row.rdv.telephoneClient) {
                               <span class="pclient-phone">
-                                <i class="pi pi-phone"></i> {{ rdv.telephoneClient }}
+                                <i class="pi pi-phone"></i> {{ row.rdv.telephoneClient }}
                               </span>
                             }
-                            <span [class]="rdv.typeClient === TypeClient.MARIAGE ? 'ptype-badge ptype-mariage' : 'ptype-badge'">
-                              {{ getTypeClientLabel(rdv.typeClient) }}
+                            <span [class]="row.rdv.typeClient === TypeClient.MARIAGE ? 'ptype-badge ptype-mariage' : 'ptype-badge'">
+                              {{ getTypeClientLabel(row.rdv.typeClient) }}
                             </span>
                           </div>
                         </div>
@@ -465,10 +410,15 @@
                       <!-- Mon service -->
                       <td>
                         <div class="pservice-list">
-                          @for (srv of getMyServices(rdv); track srv.id) {
-                            <span class="pservice-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                          @for (srv of row.services; track srv.id) {
+                            <div class="pservice-row">
+                              <span class="pservice-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                              @if (srv.dureeService) {
+                                <span class="pduree-inline"><i class="pi pi-clock"></i> {{ formatDuree(srv.dureeService) }}</span>
+                              }
+                            </div>
                           }
-                          @if (getMyServices(rdv).length === 0) {
+                          @if (row.services.length === 0) {
                             <span class="text-muted">—</span>
                           }
                         </div>
@@ -478,36 +428,48 @@
                       <td>
                         <span class="pdate-cell">
                           <i class="pi pi-calendar"></i>
-                          {{ formatDate(rdv.dateDebut) }}
-                        </span>
-                      </td>
-
-                      <!-- Durée -->
-                      <td>
-                        <span class="pduree-badge">
-                          <i class="pi pi-clock"></i>
-                          {{ formatDuree(rdv.dureeMinutes) }}
+                          {{ formatDate(row.date) }}
                         </span>
                       </td>
 
                       <!-- Statut -->
                       <td>
-                        <span [class]="'pstatut-badge pstatut--' + getStatutClass(rdv.statut)">
-                          {{ getStatutLabel(rdv.statut) }}
+                        <span [class]="'pstatut-badge pstatut--' + getStatutClass(row.rdv.statut)">
+                          {{ getStatutLabel(row.rdv.statut) }}
                         </span>
+                        @if (getRdvNote(row.rdv.id); as note) {
+                          <div class="rdv-stars-row">
+                            @for (s of getStarsArray(); track s) {
+                              <i [class]="s <= note ? 'pi pi-star-fill star-filled' : 'pi pi-star star-empty'"></i>
+                            }
+                            <span class="rdv-note-val">{{ note }}/5</span>
+                          </div>
+                        }
                       </td>
                       <!-- Actions -->
                       <td>
-                        <div class="action-btns">
-                          @if (rdv.statut === StatutRendezVous.EN_ATTENTE || rdv.statut === StatutRendezVous.CONFIRME) {
-                            <button class="action-btn-commencer" (click)="commencerRdv(rdv)" title="Commencer le rendez-vous">
-                              <i class="pi pi-play"></i>
-                            </button>
+                        <div class="action-btns-emp">
+                          @for (srv of row.services; track srv.id) {
+                            @if (srv.employeeId === profile()?.id) {
+                              <div class="service-btns">
+                                <button class="action-btn-commencer action-btn--small" (click)="commencerService(srv.id)" title="Commencer ce service">
+                                  <i class="pi pi-play"></i>
+                                </button>
+                                <button class="action-btn-termine action-btn--small" (click)="terminerService(srv.id)" title="Terminer ce service">
+                                  <i class="pi pi-check-circle"></i>
+                                </button>
+                              </div>
+                            }
                           }
-                          @if (rdv.statut === StatutRendezVous.EN_COURS) {
-                            <button class="action-btn-termine" (click)="terminerRdv(rdv)" title="Terminer le rendez-vous">
-                              <i class="pi pi-check-circle"></i>
-                            </button>
+                          @if (row.services.length === 0 || !hasAssignedServices(row.rdv)) {
+                            <div class="service-btns">
+                              <button class="action-btn-commencer" (click)="commencerRdv(row.rdv)" title="Commencer le rendez-vous">
+                                <i class="pi pi-play"></i>
+                              </button>
+                              <button class="action-btn-termine" (click)="terminerRdv(row.rdv)" title="Terminer le rendez-vous">
+                                <i class="pi pi-check-circle"></i>
+                              </button>
+                            </div>
                           }
                         </div>
                       </td>
@@ -525,7 +487,7 @@
     @if (activeTab() === 'stock') {
       <div class="stock-section">
 
-        <!-- Search -->
+        <!-- Toolbar -->
         <div class="stock-toolbar">
           <div class="search-box">
             <i class="pi pi-search"></i>
@@ -538,17 +500,24 @@
           </button>
         </div>
 
+        <!-- Success / Error banners -->
+        @if (stockSuccess()) {
+          <div class="stock-banner stock-banner--success">
+            <i class="pi pi-check-circle"></i> {{ stockSuccess() }}
+          </div>
+        }
+        @if (stockError()) {
+          <div class="stock-banner stock-banner--error">
+            <i class="pi pi-exclamation-circle"></i> {{ stockError() }}
+          </div>
+        }
+
         @if (stockLoading()) {
           <div class="stock-loading">
             <i class="pi pi-spin pi-spinner"></i>
             <span>Chargement des produits...</span>
           </div>
         } @else {
-          @if (stockError()) {
-            <div class="stock-error">
-              <i class="pi pi-exclamation-circle"></i> {{ stockError() }}
-            </div>
-          }
 
           @if (filteredProduits().length === 0) {
             <div class="stock-empty">
@@ -558,45 +527,60 @@
           } @else {
             <div class="stock-grid">
               @for (produit of filteredProduits(); track produit.id) {
-                <div class="stock-card" [class.en-alerte]="produit.enAlerte">
-                  @if (produit.enAlerte) {
-                    <div class="alerte-badge"><i class="pi pi-exclamation-triangle"></i> Stock bas</div>
-                  }
-                  <div class="stock-card__header">
+                <div class="stock-card"
+                     [class.selected]="isSelected(produit.id)"
+                     (click)="toggleSelection(produit)">
+
+                  <!-- Checkbox -->
+                  <div class="stock-card__checkbox" [class.checked]="isSelected(produit.id)">
+                    @if (isSelected(produit.id)) {
+                      <i class="pi pi-check"></i>
+                    }
+                  </div>
+
+                  <!-- Main info -->
+                  <div class="stock-card__info">
                     <div class="stock-card__nom">{{ produit.nom }}</div>
-                    <span class="stock-categorie-pill">{{ CATEGORIE_STOCK_LABELS[produit.categorie] }}</span>
-                  </div>
-                  <div class="stock-card__body">
-                    <div class="stock-info-row">
-                      <span class="info-label">Fournisseur</span>
-                      <span class="info-value">{{ produit.nomFournisseur || '—' }}</span>
-                    </div>
-                    <div class="stock-info-row">
-                      <span class="info-label">Prix unitaire</span>
-                      <span class="info-value">{{ produit.prixUnitaire | number:'1.2-2' }} DH</span>
-                    </div>
-                    <div class="stock-info-row">
-                      <span class="info-label">Qté minimum</span>
-                      <span class="info-value">{{ produit.quantiteMinimum }} {{ produit.unite }}</span>
+                    <div class="stock-card__meta">
+                      <span class="meta-item"><i class="pi pi-tag"></i> Réf: {{ produit.reference || '—' }}</span>
+                      <span class="meta-item"><i class="pi pi-box"></i> {{ CATEGORIE_STOCK_LABELS[produit.categorie] }}</span>
                     </div>
                   </div>
-                  <div class="stock-card__footer">
-                    <div class="quantite-display" [class.low]="produit.enAlerte">
-                      <span class="quantite-num">{{ produit.quantite }}</span>
-                      <span class="quantite-unite">{{ produit.unite }}</span>
+
+                  <!-- Quantity selector (only when selected) -->
+                  @if (isSelected(produit.id)) {
+                    <div class="stock-card__qty" (click)="$event.stopPropagation()">
+                      <span class="qty-label">Quantité utilisée :</span>
+                      <div class="qty-control">
+                        <span class="qty-value">{{ getQteUtilisee(produit.id) }}</span>
+                        <button class="qty-btn" (click)="incrementQte(produit.id)">
+                          <i class="pi pi-plus"></i>
+                        </button>
+                      </div>
                     </div>
-                    <button class="decrement-btn"
-                            [disabled]="produit.quantite <= 0"
-                            (click)="decrementerStock(produit)"
-                            title="Signaler consommation (−1)">
-                      <i class="pi pi-minus"></i>
-                    </button>
-                  </div>
+                  }
                 </div>
               }
             </div>
           }
         }
+
+        <!-- Confirm bar (sticky bottom) -->
+        @if (selectedCount() > 0) {
+          <div class="stock-confirm-bar">
+            <button class="confirm-btn"
+                    [disabled]="stockConfirmLoading()"
+                    (click)="confirmerUtilisation()">
+              @if (stockConfirmLoading()) {
+                <i class="pi pi-spin pi-spinner"></i>
+              } @else {
+                <i class="pi pi-check-circle"></i>
+              }
+              Confirmer l'utilisation ({{ selectedCount() }} produit{{ selectedCount() > 1 ? 's' : '' }})
+            </button>
+          </div>
+        }
+
       </div>
     }
   </main>

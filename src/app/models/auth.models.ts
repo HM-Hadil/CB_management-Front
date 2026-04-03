@@ -146,6 +146,14 @@ export enum StatutRendezVous {
   TERMINE = 'TERMINE'
 }
 
+export enum StatutService {
+  EN_ATTENTE = 'EN_ATTENTE',
+  CONFIRME = 'CONFIRME',
+  EN_COURS = 'EN_COURS',
+  ANNULE = 'ANNULE',
+  TERMINE = 'TERMINE'
+}
+
 export interface RegisterRequest {
   nom: string;
   prenom: string;
@@ -221,6 +229,7 @@ export interface ServiceRendezVousDto {
   employeePrenom: string;
   employeeSpecialite: Specialite;
   typeService: TypeService;
+  statut: StatutService;
   datePrevue?: string;
   dureeService?: number;
   codeRobe?: string;
@@ -309,23 +318,19 @@ export interface ClienteFideliteDto {
 
 // ── Stock ──────────────────────────────────────────────────────
 export enum CategorieStock {
-  COIFFURE    = 'COIFFURE',
-  MANUCURE    = 'MANUCURE',
-  PEDICURE    = 'PEDICURE',
-  SOIN_VISAGE = 'SOIN_VISAGE',
-  MASSAGE     = 'MASSAGE',
-  EPILATION   = 'EPILATION',
-  MAQUILLAGE  = 'MAQUILLAGE'
+  SOINS         = 'SOINS',
+  COIFFEUSE     = 'COIFFEUSE',
+  ESTHETICIENNE = 'ESTHETICIENNE',
+  ONGLERIE      = 'ONGLERIE',
+  MAQUILLEUSE   = 'MAQUILLEUSE'
 }
 
 export const CATEGORIE_STOCK_LABELS: Record<CategorieStock, string> = {
-  [CategorieStock.COIFFURE]:    'Coiffure',
-  [CategorieStock.MANUCURE]:    'Manucure',
-  [CategorieStock.PEDICURE]:    'Pédicure',
-  [CategorieStock.SOIN_VISAGE]: 'Soin de visage',
-  [CategorieStock.MASSAGE]:     'Massage',
-  [CategorieStock.EPILATION]:   'Épilation',
-  [CategorieStock.MAQUILLAGE]:  'Maquillage'
+  [CategorieStock.SOINS]:         'Soins',
+  [CategorieStock.COIFFEUSE]:     'Coiffeuse',
+  [CategorieStock.ESTHETICIENNE]: 'Esthéticienne',
+  [CategorieStock.ONGLERIE]:      'Onglerie',
+  [CategorieStock.MAQUILLEUSE]:   'Maquilleuse'
 };
 
 export interface ProduitStockDto {
@@ -335,8 +340,8 @@ export interface ProduitStockDto {
   quantite: number;
   quantiteMinimum: number;
   unite: string;
-  prixUnitaire: number;
   nomFournisseur: string | null;
+  reference: string | null;
   enAlerte: boolean;
   createdAt: string;
   updatedAt: string;
@@ -348,8 +353,8 @@ export interface ProduitStockRequest {
   quantite: number;
   quantiteMinimum: number;
   unite: string;
-  prixUnitaire: number | null;
   nomFournisseur: string;
+  reference: string;
 }
 
 // ── Avis Clientes ───────────────────────────────────────────────

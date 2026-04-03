@@ -8,6 +8,7 @@ import {
   TypeServiceGroupeDto,
   TypeService,
   StatutRendezVous,
+  StatutService,
   Specialite
 } from '../models/auth.models';
 
@@ -39,6 +40,13 @@ export class RendezVousService {
   changerStatut(id: number, statut: StatutRendezVous): Observable<RendezVousResponse> {
     return this.http.patch<RendezVousResponse>(
       `${this.BASE_URL}/rendez-vous/${id}/statut`,
+      { statut }
+    );
+  }
+
+  changerStatutService(serviceId: number, statut: StatutService): Observable<RendezVousResponse> {
+    return this.http.patch<RendezVousResponse>(
+      `${this.BASE_URL}/services/${serviceId}/statut`,
       { statut }
     );
   }
@@ -95,6 +103,20 @@ export class RendezVousService {
   terminerRendezVous(id: number): Observable<RendezVousResponse> {
     return this.http.patch<RendezVousResponse>(
       `${this.EMPLOYEE_URL}/mes-rendez-vous/${id}/terminer`,
+      {}
+    );
+  }
+
+  commencerService(serviceId: number): Observable<RendezVousResponse> {
+    return this.http.patch<RendezVousResponse>(
+      `${this.EMPLOYEE_URL}/mes-services/${serviceId}/commencer`,
+      {}
+    );
+  }
+
+  terminerService(serviceId: number): Observable<RendezVousResponse> {
+    return this.http.patch<RendezVousResponse>(
+      `${this.EMPLOYEE_URL}/mes-services/${serviceId}/terminer`,
       {}
     );
   }

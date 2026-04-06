@@ -575,6 +575,19 @@ $text-light:    #9a7070;
   &--termine    { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 }
 
+// Service-level statut badge (inline in services list)
+.statut-srv-badge {
+  display: inline-flex; align-items: center;
+  padding: 0.15rem 0.5rem; border-radius: 999px;
+  font-size: 0.62rem; font-weight: 700; white-space: nowrap;
+
+  &--en-attente { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+  &--confirme   { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+  &--en-cours   { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+  &--annule     { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  &--termine    { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+}
+
 // Action buttons
 .action-btns { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
 
@@ -1148,6 +1161,12 @@ $text-light:    #9a7070;
   gap: 0.25rem;
 }
 
+.service-time {
+  display: flex; align-items: center; gap: 0.25rem;
+  font-size: 0.7rem; color: #9ca3af; margin-top: 0.15rem;
+  i { font-size: 0.65rem; }
+}
+
 .service-date {
   font-size: 0.72rem;
   color: #6b7280;
@@ -1395,7 +1414,7 @@ $text-light:    #9a7070;
   display: flex;
   align-items: center;
   gap: 1.25rem;
-  background: linear-gradient(135deg, lighten($rose-bg, 2%), $gold-bg);
+  background: linear-gradient(135deg, adjust-color($rose-bg, $lightness: 2%), $gold-bg);
   border: 1px solid $rose-border;
   border-left: 4px solid $rose-primary;
   border-radius: var(--border-radius-lg);
@@ -1651,7 +1670,7 @@ $text-light:    #9a7070;
   gap: 0.5rem;
   width: 100%;
   padding: 0.65rem 1rem;
-  background: linear-gradient(135deg, $rose-primary, lighten($rose-primary, 8%));
+  background: linear-gradient(135deg, $rose-primary, adjust-color($rose-primary, $lightness: 8%));
   color: #fff;
   border: none;
   border-radius: var(--border-radius-md);

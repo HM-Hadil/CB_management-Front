@@ -582,6 +582,12 @@
   i { font-size: 0.72rem; color: var(--gold-500); }
 }
 
+.ptime-cell {
+  display: flex; align-items: center; gap: 0.3rem;
+  font-size: 0.75rem; color: #9ca3af; margin-top: 0.15rem;
+  i { font-size: 0.65rem; }
+}
+
 .pduree-badge {
   display: inline-flex; align-items: center; gap: 0.3rem;
   background: var(--rose-50); color: var(--rose-700); border: 1px solid var(--rose-200);

@@ -327,10 +327,10 @@ export enum CategorieStock {
 
 export const CATEGORIE_STOCK_LABELS: Record<CategorieStock, string> = {
   [CategorieStock.SOINS]:         'Soins',
-  [CategorieStock.COIFFEUSE]:     'Coiffeuse',
-  [CategorieStock.ESTHETICIENNE]: 'Esthéticienne',
+  [CategorieStock.COIFFEUSE]:     'Coiffeure',
+  [CategorieStock.ESTHETICIENNE]: 'Esthétique',
   [CategorieStock.ONGLERIE]:      'Onglerie',
-  [CategorieStock.MAQUILLEUSE]:   'Maquilleuse'
+  [CategorieStock.MAQUILLEUSE]:   'Maquillage'
 };
 
 export interface ProduitStockDto {
@@ -372,4 +372,20 @@ export interface AvisClienteDto {
 export interface AvisClienteRequest {
   note: number;
   commentaire: string;
+}
+
+// ── Statistiques ────────────────────────────────────────────────
+export interface StatsRdvEmployeeDto {
+  employeeId: number;
+  employeeNom: string;
+  employeePrenom: string;
+  mois: number;
+  count: number;
+}
+
+export interface StatsPresenceEmployeeDto {
+  employeeId: number;
+  employeeNom: string;
+  employeePrenom: string;
+  joursPresent: number;
 }

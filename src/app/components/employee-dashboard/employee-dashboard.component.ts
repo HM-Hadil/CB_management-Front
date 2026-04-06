@@ -49,6 +49,9 @@ export class EmployeeDashboardComponent implements OnInit {
   showNewPw = signal(false);
 
   profileForm: UpdateProfileRequest = {
+    nom: '',
+    prenom: '',
+    email: '',
     telephone: '',
     specialites: [],
     nombresExperiences: undefined
@@ -62,8 +65,8 @@ export class EmployeeDashboardComponent implements OnInit {
 
   readonly specialites: { value: string; label: string }[] = [
     { value: 'SOINS',         label: 'Soins' },
-    { value: 'COIFFEUSE',     label: 'Coiffeuse' },
-    { value: 'ESTHETICIENNE', label: 'Esthéticienne' },
+    { value: 'COIFFEUSE',     label: 'Coiffeure' },
+    { value: 'ESTHETICIENNE', label: 'Esthétique' },
     { value: 'ONGLERIE',      label: 'Onglerie' },
     { value: 'MAQUILLEUSE',   label: 'Maquillage' }
   ];
@@ -277,6 +280,9 @@ export class EmployeeDashboardComponent implements OnInit {
       next: (data) => {
         this.profile.set(data);
         this.profileForm = {
+          nom: data.nom,
+          prenom: data.prenom,
+          email: data.email,
           telephone: data.telephone ?? '',
           specialites: data.specialites ? [...data.specialites] : [],
           nombresExperiences: data.nombresExperiences
@@ -292,6 +298,9 @@ export class EmployeeDashboardComponent implements OnInit {
             specialites: user.specialites, nombresExperiences: user.nombresExperiences
           });
           this.profileForm = {
+            nom: user.nom,
+            prenom: user.prenom,
+            email: user.email,
             telephone: '',
             specialites: user.specialites ? [...user.specialites] : [],
             nombresExperiences: user.nombresExperiences
@@ -524,6 +533,11 @@ export class EmployeeDashboardComponent implements OnInit {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
+  }
+
+  formatTime(dateStr: string): string {
+    if (!dateStr || /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return '';
+    return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
 
   getClientInitials(rdv: RendezVousResponse): string {

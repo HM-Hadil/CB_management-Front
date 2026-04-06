@@ -28,6 +28,10 @@
         <i class="pi pi-id-card"></i>
         <span>Présence</span>
       </button>
+      <button class="nav-item" [class.active]="activeTab() === 'stats'" (click)="setTab('stats')">
+        <i class="pi pi-chart-bar"></i>
+        <span>Statistiques</span>
+      </button>
     </nav>
 
     <div class="sidebar__user">
@@ -48,7 +52,7 @@
   <main class="main-content">
 
     <!-- ══ STAFF SECTION (tabs: all / employees / receptionists) ══ -->
-    @if (activeTab() !== 'rdv' && activeTab() !== 'presence') {
+    @if (activeTab() !== 'rdv' && activeTab() !== 'presence' && activeTab() !== 'stats') {
 
       <!-- Stats cards -->
       <div class="stats-row">
@@ -485,11 +489,21 @@
                         @for (srv of row.services; track srv.id) {
                           <div class="rdv-service-line">
                             <span class="rdv-svc-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                            @if (formatTime(srv.datePrevue ?? ''); as t) {
+                              <span class="rdv-time-cell"><i class="pi pi-clock"></i> {{ t }}</span>
+                            }
                             @if (srv.employeeNom) {
                               <span class="rdv-svc-emp">
                                 <i class="pi pi-user"></i>
                                 {{ srv.employeePrenom }} {{ srv.employeeNom }}
                               </span>
+                            }
+                            @if (isMarieeService(srv) && srv.statut !== StatutService.TERMINE && srv.statut !== StatutService.ANNULE && row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
+                              <button class="btn-terminer-srv"
+                                (click)="changerStatutService(srv.id, StatutService.TERMINE, row.rdv.id); $event.stopPropagation()"
+                                title="Terminer ce service">
+                                <i class="pi pi-check-circle"></i> Terminer
+                              </button>
                             }
                           </div>
                         }
@@ -514,6 +528,9 @@
                         <i class="pi pi-calendar"></i>
                         {{ formatDate(row.date) }}
                       </span>
+                      @if (formatTime(row.rdv.dateDebut); as t) {
+                        <span class="rdv-time-cell"><i class="pi pi-clock"></i> {{ t }}</span>
+                      }
                     </td>
 
                     <!-- Durée par service -->
@@ -540,6 +557,11 @@
                           }
                           <span class="rdv-note-val">{{ note }}/5</span>
                         </div>
+                      }
+                      @if (canTerminerMariee(row.rdv)) {
+                        <button class="btn-terminer-mariee" (click)="terminerRdvMariee(row.rdv); $event.stopPropagation()">
+                          <i class="pi pi-check-circle"></i> Terminer
+                        </button>
                       }
                     </td>
 
@@ -641,7 +663,7 @@
                           <div class="pres-emp__info">
                             <strong>{{ p.employeePrenom }} {{ p.employeeNom }}</strong>
                             @if (p.employeeSpecialite) {
-                              <span>{{ p.employeeSpecialite }}</span>
+                            <span>{{ getSpecialiteLabel(p.employeeSpecialite) }}</span>
                             }
                           </div>
                         </div>
@@ -695,7 +717,7 @@
                       <div class="pres-emp__info">
                         <strong>{{ p.employeePrenom }} {{ p.employeeNom }}</strong>
                         @if (p.employeeSpecialite) {
-                          <span>{{ p.employeeSpecialite }}</span>
+                          <span>{{ getSpecialiteLabel(p.employeeSpecialite) }}</span>
                         }
                       </div>
                     </div>
@@ -729,6 +751,153 @@
       </section>
     }
 
+    <!-- ══ STATS SECTION ════════════════════════════════════════ -->
+    @if (activeTab() === 'stats') {
+      <section class="stats-section">
+
+        <!-- Header + Year navigation -->
+        <div class="stats-header">
+          <div class="stats-title">
+            <i class="pi pi-chart-bar"></i>
+            <h2>Statistiques</h2>
+          </div>
+          <div class="stats-year-nav">
+            <button class="year-nav-btn" (click)="changeStatsYear(-1)"><i class="pi pi-chevron-left"></i></button>
+            <span class="year-label">{{ statsYear() }}</span>
+            <button class="year-nav-btn" (click)="changeStatsYear(1)" [disabled]="statsYear() >= 2099"><i class="pi pi-chevron-right"></i></button>
+          </div>
+        </div>
+
+        @if (statsLoading()) {
+          <div class="stats-loading"><i class="pi pi-spin pi-spinner"></i> Chargement...</div>
+        } @else {
+
+          <!-- ── Top Performer ─────────────────────────────────── -->
+          <div class="stats-top-row">
+
+            @if (topPerformer(); as top) {
+              <div class="top-performer-card">
+                <div class="top-performer-crown"><i class="pi pi-star-fill"></i> Top Employée {{ statsYear() }}</div>
+                <div class="top-performer-body">
+                  <div class="top-performer-avatar" [style.background]="top.color">
+                    {{ getEmployeeInitialsById(top.prenom, top.nom) }}
+                  </div>
+                  <div class="top-performer-info">
+                    <span class="top-performer-name">{{ top.prenom }} {{ top.nom }}</span>
+                    <span class="top-performer-count">{{ top.total }} rendez-vous</span>
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <div class="top-performer-card top-performer-card--empty">
+                <i class="pi pi-info-circle"></i> Aucune donnée pour {{ statsYear() }}
+              </div>
+            }
+
+            <!-- Summary totals per employee -->
+            <div class="stats-emp-summary">
+              @for (emp of statsEmployees(); track emp.id) {
+                <div class="emp-summary-row">
+                  <span class="emp-dot" [style.background]="emp.color"></span>
+                  <span class="emp-summary-name">{{ emp.prenom }} {{ emp.nom }}</span>
+                  <span class="emp-summary-total">{{ getTotalRdvForEmployee(emp.id) }} rdv</span>
+                </div>
+              }
+              @if (statsEmployees().length === 0) {
+                <span class="text-muted">Aucune donnée</span>
+              }
+            </div>
+
+          </div>
+
+          <!-- ── Bar Chart : RDV par employée par mois ────────── -->
+          <div class="chart-card">
+            <div class="chart-card__title">
+              <i class="pi pi-calendar"></i> Rendez-vous par employée — {{ statsYear() }}
+            </div>
+            @if (statsEmployees().length === 0) {
+              <div class="chart-empty">Aucune donnée pour cette année.</div>
+            } @else {
+              <div class="bar-chart-wrap">
+                <div class="bar-chart-yaxis">
+                  @for (tick of barChartYTicks(); track $index) {
+                    <span>{{ tick }}</span>
+                  }
+                </div>
+                <div class="bar-chart-body">
+                  @for (month of barChartMonths(); track month.mois) {
+                    <div class="bar-chart-group">
+                      <div class="bar-chart-bars">
+                        @for (bar of month.bars; track bar.empId) {
+                          <div class="bar-chart-bar-wrap" [title]="bar.count + ' rdv'">
+                            <div class="bar-chart-bar"
+                                 [style.height.%]="barChartMax() > 0 ? (bar.count / barChartMax()) * 100 : 0"
+                                 [style.background]="bar.color">
+                            </div>
+                          </div>
+                        }
+                      </div>
+                      <span class="bar-chart-label">{{ month.label }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+              <div class="chart-legend">
+                @for (emp of statsEmployees(); track emp.id) {
+                  <div class="legend-item">
+                    <span class="legend-dot" [style.background]="emp.color"></span>
+                    {{ emp.prenom }} {{ emp.nom }}
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- ── Pie Chart : Présence par employée ────────────── -->
+          <div class="chart-card">
+            <div class="chart-card__title">
+              <i class="pi pi-id-card"></i> Présence par employée
+              <div class="presence-mois-filter">
+                @for (m of [1,2,3,4,5,6,7,8,9,10,11,12]; track m) {
+                  <button class="mois-pill" [class.active]="statsPresenceMois() === m"
+                    (click)="changeStatsMois(m)">{{ MOIS_LABELS[m-1] }}</button>
+                }
+              </div>
+            </div>
+            @if (pieSlices().length === 0) {
+              <div class="chart-empty">Aucune présence enregistrée pour {{ MOIS_LABELS[statsPresenceMois()-1] }} {{ statsYear() }}.</div>
+            } @else {
+              <div class="pie-chart-wrap">
+                <svg viewBox="0 0 200 200" class="pie-svg">
+                  @for (slice of pieSlices(); track slice.employeeId) {
+                    <path [attr.d]="getPieSlicePath(100, 100, 90, slice.startAngle, slice.endAngle)"
+                          [attr.fill]="slice.color"
+                          stroke="#fff" stroke-width="2">
+                      <title>{{ slice.employeePrenom }} {{ slice.employeeNom }} — {{ slice.joursPresent }} j ({{ slice.percent }}%)</title>
+                    </path>
+                  }
+                  <circle cx="100" cy="100" r="50" fill="white"/>
+                  <text x="100" y="95" text-anchor="middle" class="pie-center-label">Total</text>
+                  <text x="100" y="112" text-anchor="middle" class="pie-center-value">{{ totalPresenceJours() }} j</text>
+                </svg>
+                <div class="pie-legend">
+                  @for (slice of pieSlices(); track slice.employeeId) {
+                    <div class="pie-legend-item">
+                      <span class="legend-dot" [style.background]="slice.color"></span>
+                      <span class="pie-legend-name">{{ slice.employeePrenom }} {{ slice.employeeNom }}</span>
+                      <span class="pie-legend-val">{{ slice.joursPresent }} j</span>
+                      <span class="pie-legend-pct">{{ slice.percent }}%</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+        }
+      </section>
+    }
+
   </main>
 </div>
 
@@ -742,8 +911,8 @@
           <i class="pi {{ modalMode() === 'create' ? 'pi-user-plus' : 'pi-pencil' }}"></i>
         </div>
         <div>
-          <h2>{{ modalMode() === 'create' ? 'Créer un compte' : 'Modifier le profil' }}</h2>
-          <p>{{ modalMode() === 'create' ? 'Le compte sera activé immédiatement' : 'Modifiez les informations du membre' }}</p>
+          <h2>{{ modalMode() === 'create' ? 'Créer un compte' : 'Changer le mot de passe' }}</h2>
+          <p>{{ modalMode() === 'create' ? 'Le compte sera activé immédiatement' : 'Modifiez uniquement le mot de passe du membre' }}</p>
         </div>
         <button class="modal__close" (click)="closeModal()">
           <i class="pi pi-times"></i>
@@ -801,28 +970,27 @@
           </div>
 
         } @else {
-<div class="modal-form-grid">
+          <div class="modal-form-grid">
             <div class="modal-form-group">
-              <label>Prénom *</label>
-              <input type="text" [(ngModel)]="editForm.prenom" class="modal-input" />
+              <label>Prénom</label>
+              <div class="modal-static-value">{{ editForm.prenom }}</div>
             </div>
             <div class="modal-form-group">
-              <label>Nom *</label>
-              <input type="text" [(ngModel)]="editForm.nom" class="modal-input" />
+              <label>Nom</label>
+              <div class="modal-static-value">{{ editForm.nom }}</div>
             </div>
           </div>
           <div class="modal-form-group">
-            <label>Email *</label>
-            <input type="email" [(ngModel)]="editForm.email" class="modal-input" />
+            <label>Email</label>
+            <div class="modal-static-value">{{ editForm.email }}</div>
           </div>
           <div class="modal-form-group">
             <label>Téléphone</label>
-            <input type="tel" [(ngModel)]="editForm.telephone" class="modal-input" placeholder="xx xxx xxx" maxlength="8" />
+            <div class="modal-static-value">{{ editForm.telephone || '—' }}</div>
           </div>
 
-
           <div class="modal-form-group">
-            <label>Nouveau mot de passe <span class="optional">(laisser vide pour ne pas modifier)</span></label>
+            <label>Nouveau mot de passe *</label>
             <div class="modal-input-toggle">
               <input [type]="showPassword() ? 'text' : 'password'"
                 [(ngModel)]="editForm.password" class="modal-input" placeholder="Min. 6 caractères" />
@@ -941,7 +1109,7 @@
                   {{ srv.employeePrenom }} {{ srv.employeeNom }}
                 </span>
                 @if (srv.employeeSpecialite) {
-                  <span class="rdv-svc-specialite">{{ srv.employeeSpecialite }}</span>
+                  <span class="rdv-svc-specialite">{{ getSpecialiteLabel(srv.employeeSpecialite) }}</span>
                 }
               </div>
             </div>

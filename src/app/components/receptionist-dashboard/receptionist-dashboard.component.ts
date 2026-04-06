@@ -1204,6 +1204,16 @@ getPresenceStatutLabel(s: StatutPresence): string {
     return TYPE_SERVICE_META[ts]?.label ?? String(ts);
   }
 
+  getDisplayedServicesForGroup(group: TypeServiceGroupeDto, normalOnly: boolean): TypeService[] {
+    if (group.specialite !== Specialite.MAQUILLEUSE) {
+      return group.services;
+    }
+    if (!normalOnly) {
+      return group.services;
+    }
+    return group.services.filter(ts => ts === TypeService.MAQUILLAGE_PAR_EQUIPE);
+  }
+
   getServiceDefaultDuree(ts: TypeService | string): number {
     return TYPE_SERVICE_META[ts]?.dureeMinutes ?? 60;
   }
@@ -1218,7 +1228,7 @@ getPresenceStatutLabel(s: StatutPresence): string {
 
   getSpecialiteLabel(sp: Specialite | string): string {
     const map: Record<string, string> = {
-      SOINS: 'Soins', COIFFEUSE: 'Coiffure',
+      SOINS: 'Soins', COIFFEUSE: 'Coiffeure',
       ESTHETICIENNE: 'Esthétique', ONGLERIE: 'Onglerie', MAQUILLEUSE: 'Maquillage'
     };
     return map[sp] ?? String(sp);
@@ -1248,6 +1258,11 @@ getPresenceStatutLabel(s: StatutPresence): string {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
+  }
+
+  formatTime(dateStr: string): string {
+    if (!dateStr || /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return '';
+    return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
 
   canEdit(rdv: RendezVousResponse): boolean {

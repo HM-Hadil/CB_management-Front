@@ -406,6 +406,12 @@
                                   <i class="pi pi-user"></i> {{ srv.employeePrenom }} {{ srv.employeeNom }}
                                 </span>
                               }
+                              @if (formatTime(srv.datePrevue ?? ''); as t) {
+                                <span class="service-time"><i class="pi pi-clock"></i> {{ t }}</span>
+                              }
+                              <span [class]="'statut-srv-badge statut-srv-badge--' + getStatutClass($any(srv.statut))">
+                                {{ getStatutLabel($any(srv.statut)) }}
+                              </span>
                             </div>
                           }
                           @if (row.services.length === 0) {
@@ -419,6 +425,9 @@
                         <span class="service-date">
                           <i class="pi pi-calendar"></i> {{ formatDate(row.date) }}
                         </span>
+                        @if (formatTime(row.rdv.dateDebut); as t) {
+                          <span class="service-time"><i class="pi pi-clock"></i> {{ t }}</span>
+                        }
                       </td>
 
                       <!-- Durée par service -->
@@ -460,46 +469,48 @@
                       <!-- Actions -->
                       <td data-label="Actions">
                         <div class="action-btns">
-                          @if (canEdit(row.rdv)) {
-                            <button class="action-btn action-btn--edit" (click)="openEditModal(row.rdv)" title="Modifier">
-                              <i class="pi pi-pencil"></i>
-                            </button>
-                          }
-                          <!-- Service-specific actions -->
-                          @for (srv of row.services; track srv.id) {
-                            <div class="service-actions">
-                              <div class="service-btns">
-                                @if (srv.statut === StatutService.EN_ATTENTE) {
-                                  <button class="action-btn action-btn--confirm action-btn--small"
-                                    (click)="changerStatutService(srv.id, StatutService.CONFIRME)"
-                                    title="Confirmer ce service">
-                                    <i class="pi pi-check"></i>
-                                  </button>
-                                }
-                                @if (srv.statut !== StatutService.ANNULE && srv.statut !== StatutService.TERMINE) {
-                                  <button class="action-btn action-btn--cancel action-btn--small"
-                                    (click)="changerStatutService(srv.id, StatutService.ANNULE)"
-                                    title="Annuler ce service">
-                                    <i class="pi pi-times"></i>
-                                  </button>
-                                }
-                              </div>
-                            </div>
-                          }
-                          @if (row.services.length === 0) {
-                            @if (row.rdv.statut === StatutRendezVous.EN_ATTENTE) {
-                              <button class="action-btn action-btn--confirm"
-                                (click)="changerStatut(row.rdv.id, StatutRendezVous.CONFIRME)"
-                                title="Confirmer">
-                                <i class="pi pi-check"></i>
+                          @if (row.rdv.statut !== StatutRendezVous.TERMINE) {
+                            @if (canEdit(row.rdv)) {
+                              <button class="action-btn action-btn--edit" (click)="openEditModal(row.rdv)" title="Modifier">
+                                <i class="pi pi-pencil"></i>
                               </button>
                             }
-                            @if (row.rdv.statut !== StatutRendezVous.ANNULE && row.rdv.statut !== StatutRendezVous.TERMINE) {
-                              <button class="action-btn action-btn--cancel"
-                                (click)="changerStatut(row.rdv.id, StatutRendezVous.ANNULE)"
-                                title="Annuler">
-                                <i class="pi pi-times"></i>
-                              </button>
+                            <!-- Service-specific actions -->
+                            @for (srv of row.services; track srv.id) {
+                              <div class="service-actions">
+                                <div class="service-btns">
+                                  @if (srv.statut === StatutService.EN_ATTENTE) {
+                                    <button class="action-btn action-btn--confirm action-btn--small"
+                                      (click)="changerStatutService(srv.id, StatutService.CONFIRME)"
+                                      title="Confirmer ce service">
+                                      <i class="pi pi-check"></i>
+                                    </button>
+                                  }
+                                  @if (srv.statut !== StatutService.ANNULE && srv.statut !== StatutService.TERMINE) {
+                                    <button class="action-btn action-btn--cancel action-btn--small"
+                                      (click)="changerStatutService(srv.id, StatutService.ANNULE)"
+                                      title="Annuler ce service">
+                                      <i class="pi pi-times"></i>
+                                    </button>
+                                  }
+                                </div>
+                              </div>
+                            }
+                            @if (row.services.length === 0) {
+                              @if (row.rdv.statut === StatutRendezVous.EN_ATTENTE) {
+                                <button class="action-btn action-btn--confirm"
+                                  (click)="changerStatut(row.rdv.id, StatutRendezVous.CONFIRME)"
+                                  title="Confirmer">
+                                  <i class="pi pi-check"></i>
+                                </button>
+                              }
+                              @if (row.rdv.statut !== StatutRendezVous.ANNULE) {
+                                <button class="action-btn action-btn--cancel"
+                                  (click)="changerStatut(row.rdv.id, StatutRendezVous.ANNULE)"
+                                  title="Annuler">
+                                  <i class="pi pi-times"></i>
+                                </button>
+                              }
                             }
                           }
                           @if (row.rdv.statut === StatutRendezVous.TERMINE) {
@@ -1665,7 +1676,7 @@
                         <option value="">Sélectionner...</option>
                         @for (group of serviceGroups(); track group.specialite) {
                           <optgroup [label]="getSpecialiteLabel(group.specialite)">
-                            @for (ts of group.services; track ts) {
+                            @for (ts of getDisplayedServicesForGroup(group, true); track ts) {
                               <option [value]="ts">{{ getTypeServiceLabel(ts) }}</option>
                             }
                           </optgroup>
@@ -1777,7 +1788,7 @@
                         <option value="">Sélectionner un service...</option>
                         @for (group of serviceGroups(); track group.specialite) {
                           <optgroup [label]="getSpecialiteLabel(group.specialite)">
-                            @for (ts of group.services; track ts) {
+                            @for (ts of getDisplayedServicesForGroup(group, true); track ts) {
                               <option [value]="ts">{{ getTypeServiceLabel(ts) }}</option>
                             }
                           </optgroup>

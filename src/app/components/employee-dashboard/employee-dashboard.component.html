@@ -92,15 +92,15 @@
             <div class="info-grid">
               <div class="info-item">
                 <label><i class="pi pi-user"></i> Prénom</label>
-                <div class="info-value readonly">{{ profile()?.prenom }}</div>
+                <input type="text" [(ngModel)]="profileForm.prenom" class="luxury-input" placeholder="Prénom" />
               </div>
               <div class="info-item">
                 <label><i class="pi pi-user"></i> Nom</label>
-                <div class="info-value readonly">{{ profile()?.nom }}</div>
+                <input type="text" [(ngModel)]="profileForm.nom" class="luxury-input" placeholder="Nom" />
               </div>
               <div class="info-item full-width">
                 <label><i class="pi pi-envelope"></i> Email</label>
-                <div class="info-value readonly">{{ profile()?.email }}</div>
+                <input type="email" [(ngModel)]="profileForm.email" class="luxury-input" placeholder="votre@email.com" />
               </div>
             </div>
 
@@ -413,8 +413,11 @@
                           @for (srv of row.services; track srv.id) {
                             <div class="pservice-row">
                               <span class="pservice-chip">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                              @if (formatTime(srv.datePrevue ?? ''); as t) {
+                                <span class="ptime-cell"><i class="pi pi-clock"></i> {{ t }}</span>
+                              }
                               @if (srv.dureeService) {
-                                <span class="pduree-inline"><i class="pi pi-clock"></i> {{ formatDuree(srv.dureeService) }}</span>
+                                <span class="pduree-inline"><i class="pi pi-hourglass"></i> {{ formatDuree(srv.dureeService) }}</span>
                               }
                             </div>
                           }
@@ -430,6 +433,9 @@
                           <i class="pi pi-calendar"></i>
                           {{ formatDate(row.date) }}
                         </span>
+                        @if (formatTime(row.rdv.dateDebut); as t) {
+                          <span class="ptime-cell"><i class="pi pi-clock"></i> {{ t }}</span>
+                        }
                       </td>
 
                       <!-- Statut -->
@@ -449,27 +455,29 @@
                       <!-- Actions -->
                       <td>
                         <div class="action-btns-emp">
-                          @for (srv of row.services; track srv.id) {
-                            @if (srv.employeeId === profile()?.id) {
+                          @if (row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
+                            @for (srv of row.services; track srv.id) {
+                              @if (srv.employeeId === profile()?.id) {
+                                <div class="service-btns">
+                                  <button class="action-btn-commencer action-btn--small" (click)="commencerService(srv.id)" title="Commencer ce service">
+                                    <i class="pi pi-play"></i>
+                                  </button>
+                                  <button class="action-btn-termine action-btn--small" (click)="terminerService(srv.id)" title="Terminer ce service">
+                                    <i class="pi pi-check-circle"></i>
+                                  </button>
+                                </div>
+                              }
+                            }
+                            @if (row.services.length === 0 || !hasAssignedServices(row.rdv)) {
                               <div class="service-btns">
-                                <button class="action-btn-commencer action-btn--small" (click)="commencerService(srv.id)" title="Commencer ce service">
+                                <button class="action-btn-commencer" (click)="commencerRdv(row.rdv)" title="Commencer le rendez-vous">
                                   <i class="pi pi-play"></i>
                                 </button>
-                                <button class="action-btn-termine action-btn--small" (click)="terminerService(srv.id)" title="Terminer ce service">
+                                <button class="action-btn-termine" (click)="terminerRdv(row.rdv)" title="Terminer le rendez-vous">
                                   <i class="pi pi-check-circle"></i>
                                 </button>
                               </div>
                             }
-                          }
-                          @if (row.services.length === 0 || !hasAssignedServices(row.rdv)) {
-                            <div class="service-btns">
-                              <button class="action-btn-commencer" (click)="commencerRdv(row.rdv)" title="Commencer le rendez-vous">
-                                <i class="pi pi-play"></i>
-                              </button>
-                              <button class="action-btn-termine" (click)="terminerRdv(row.rdv)" title="Terminer le rendez-vous">
-                                <i class="pi pi-check-circle"></i>
-                              </button>
-                            </div>
                           }
                         </div>
                       </td>

@@ -6,13 +6,15 @@ import { AuthService } from '../../services/auth.service';
 import { RendezVousService } from '../../services/rendez-vous.service';
 import { PresenceService } from '../../services/presence.service';
 import { AvisService } from '../../services/avis.service';
+import { StatsService } from '../../services/stats.service';
 import {
   UserDto, Role, RegisterRequest, UpdateUserRequest,
-  RendezVousResponse, ServiceRendezVousDto, StatutRendezVous, StatutMariee, TypeClient, TypeService,
-  AvisClienteDto, PresenceResponse, StatutPresence
+  RendezVousResponse, ServiceRendezVousDto, StatutRendezVous, StatutService, StatutMariee, TypeClient, TypeService,
+  AvisClienteDto, PresenceResponse, StatutPresence,
+  StatsRdvEmployeeDto, StatsPresenceEmployeeDto
 } from '../../models/auth.models';
 
-type Tab = 'all' | 'employees' | 'receptionists' | 'rdv' | 'presence';
+type Tab = 'all' | 'employees' | 'receptionists' | 'rdv' | 'presence' | 'stats';
 type ModalMode = 'create' | 'edit';
 
 interface AdminRdvRow {
@@ -74,15 +76,15 @@ export class AdminDashboardComponent implements OnInit {
 
   readonly specialites: { value: string; label: string }[] = [
     { value: 'SOINS',         label: 'Soins' },
-    { value: 'COIFFEUSE',     label: 'Coiffeuse' },
-    { value: 'ESTHETICIENNE', label: 'Esthéticienne' },
+    { value: 'COIFFEUSE',     label: 'Coiffeure' },
+    { value: 'ESTHETICIENNE', label: 'Esthétique' },
     { value: 'ONGLERIE',      label: 'Onglerie' },
     { value: 'MAQUILLEUSE',   label: 'Maquillage' }
   ];
 
   readonly specialiteLabels: Record<string, string> = {
-    SOINS: 'Soins', COIFFEUSE: 'Coiffeuse',
-    ESTHETICIENNE: 'Esthéticienne', ONGLERIE: 'Onglerie', MAQUILLEUSE: 'Maquillage'
+    SOINS: 'Soins', COIFFEUSE: 'Coiffeure',
+    ESTHETICIENNE: 'Esthétique', ONGLERIE: 'Onglerie', MAQUILLEUSE: 'Maquillage'
   };
 
   // ── Computed (Staff) ─────────────────────────────────────────
@@ -285,6 +287,96 @@ export class AdminDashboardComponent implements OnInit {
 
   employeesList = computed(() => this.users().filter(u => u.role === Role.EMPLOYEE && u.activated));
 
+  // ── Stats state ───────────────────────────────────────────────
+  private readonly CHART_COLORS = [
+    '#f59e0b','#ec4899','#8b5cf6','#10b981','#3b82f6','#f97316','#06b6d4','#84cc16'
+  ];
+  readonly MOIS_LABELS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+  statsRdvData      = signal<StatsRdvEmployeeDto[]>([]);
+  statsPresenceData = signal<StatsPresenceEmployeeDto[]>([]);
+  statsLoading      = signal(false);
+  statsYear         = signal(new Date().getFullYear());
+  statsPresenceMois = signal(new Date().getMonth() + 1);
+
+  // All unique employees present in RDV stats
+  statsEmployees = computed(() => {
+    const map = new Map<number, { id: number; nom: string; prenom: string; color: string }>();
+    this.statsRdvData().forEach(d => {
+      if (!map.has(d.employeeId)) {
+        map.set(d.employeeId, {
+          id: d.employeeId,
+          nom: d.employeeNom,
+          prenom: d.employeePrenom,
+          color: this.CHART_COLORS[map.size % this.CHART_COLORS.length]
+        });
+      }
+    });
+    return [...map.values()];
+  });
+
+  // { mois: 1..12, bars: { empId, count, color }[] }[]  — all 12 months always present
+  barChartMonths = computed(() => {
+    const employees = this.statsEmployees();
+    const data = this.statsRdvData();
+    return Array.from({ length: 12 }, (_, i) => {
+      const mois = i + 1;
+      return {
+        mois,
+        label: this.MOIS_LABELS[i],
+        bars: employees.map(emp => ({
+          empId: emp.id,
+          color: emp.color,
+          count: data.find(d => d.employeeId === emp.id && d.mois === mois)?.count ?? 0
+        }))
+      };
+    });
+  });
+
+  barChartMax = computed(() => {
+    const max = Math.max(...this.statsRdvData().map(d => d.count), 1);
+    return max;
+  });
+
+  barChartYTicks = computed(() => {
+    const max = this.barChartMax();
+    return [max, Math.round(max * 0.75), Math.round(max * 0.5), Math.round(max * 0.25), 0];
+  });
+
+  totalPresenceJours = computed(() =>
+    this.statsPresenceData().reduce((s, d) => s + d.joursPresent, 0)
+  );
+
+  topPerformer = computed(() => {
+    const employees = this.statsEmployees();
+    if (employees.length === 0) return null;
+    const totals = employees.map(emp => ({
+      ...emp,
+      total: this.statsRdvData().filter(d => d.employeeId === emp.id).reduce((s, d) => s + d.count, 0)
+    }));
+    return totals.sort((a, b) => b.total - a.total)[0];
+  });
+
+  // Pie chart slices for presence
+  pieSlices = computed(() => {
+    const data = this.statsPresenceData();
+    const total = data.reduce((s, d) => s + d.joursPresent, 0);
+    if (total === 0) return [];
+    let angle = 0;
+    return data.map((d, i) => {
+      const start = angle;
+      const sweep = (d.joursPresent / total) * 360;
+      angle += sweep;
+      return {
+        ...d,
+        color: this.CHART_COLORS[i % this.CHART_COLORS.length],
+        startAngle: start,
+        endAngle: angle,
+        percent: Math.round((d.joursPresent / total) * 100)
+      };
+    });
+  });
+
   // ── Présence state ────────────────────────────────────────────
   presences = signal<PresenceResponse[]>([]);
   presenceLoading = signal(false);
@@ -313,15 +405,25 @@ export class AdminDashboardComponent implements OnInit {
   // ── Enums exposed ────────────────────────────────────────────
   Role = Role;
   StatutRendezVous = StatutRendezVous;
+  StatutService = StatutService;
   StatutMariee = StatutMariee;
   TypeClient = TypeClient;
+
+  readonly MARIEE_SERVICE_TYPES: TypeService[] = [
+    TypeService.MAQUILLAGE_SDAG,
+    TypeService.MAQUILLAGE_HENNA,
+    TypeService.MAQUILLAGE_BADOU,
+    TypeService.MAQUILLAGE_D5OUL,
+    TypeService.MAQUILLAGE_FIANCAILLES,
+  ];
 
   constructor(
     private userService: UserService,
     public authService: AuthService,
     private rendezVousService: RendezVousService,
     private presenceService: PresenceService,
-    private avisService: AvisService
+    private avisService: AvisService,
+    private statsService: StatsService
   ) {}
 
   getRdvNote(rdvId: number): number | null {
@@ -362,6 +464,59 @@ export class AdminDashboardComponent implements OnInit {
     if (tab === 'presence') {
       this.loadPresence();
     }
+    if (tab === 'stats') {
+      this.loadStatsRdv();
+      this.loadStatsPresence();
+    }
+  }
+
+  loadStatsRdv() {
+    this.statsLoading.set(true);
+    this.statsService.getRdvParEmployeeParMois(this.statsYear()).subscribe({
+      next: (data) => { this.statsRdvData.set(data); this.statsLoading.set(false); },
+      error: ()    => { this.statsLoading.set(false); this.showToast('Erreur chargement stats RDV.', 'error'); }
+    });
+  }
+
+  loadStatsPresence() {
+    this.statsService.getPresenceParEmployeeParMois(this.statsPresenceMois(), this.statsYear()).subscribe({
+      next: (data) => this.statsPresenceData.set(data),
+      error: ()    => this.showToast('Erreur chargement stats présence.', 'error')
+    });
+  }
+
+  changeStatsYear(delta: number) {
+    this.statsYear.update(y => y + delta);
+    this.loadStatsRdv();
+    this.loadStatsPresence();
+  }
+
+  changeStatsMois(mois: number) {
+    this.statsPresenceMois.set(mois);
+    this.loadStatsPresence();
+  }
+
+  // SVG pie slice path (cx,cy = center, r = radius)
+  getPieSlicePath(cx: number, cy: number, r: number, startAngle: number, endAngle: number): string {
+    const toRad = (deg: number) => (deg - 90) * Math.PI / 180;
+    const x1 = cx + r * Math.cos(toRad(startAngle));
+    const y1 = cy + r * Math.sin(toRad(startAngle));
+    const x2 = cx + r * Math.cos(toRad(endAngle));
+    const y2 = cy + r * Math.sin(toRad(endAngle));
+    const large = endAngle - startAngle > 180 ? 1 : 0;
+    if (endAngle - startAngle >= 359.9) {
+      // Full circle
+      return `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.001} ${cy - r} Z`;
+    }
+    return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+  }
+
+  getEmployeeInitialsById(prenom: string, nom: string): string {
+    return (prenom.charAt(0) + nom.charAt(0)).toUpperCase();
+  }
+
+  getTotalRdvForEmployee(empId: number): number {
+    return this.statsRdvData().filter(d => d.employeeId === empId).reduce((s, d) => s + d.count, 0);
   }
 
   // ── RDV filters ──────────────────────────────────────────────
@@ -376,6 +531,39 @@ export class AdminDashboardComponent implements OnInit {
   closeRdvDetail() {
     this.showRdvDetail.set(false);
     this.selectedRdv.set(null);
+  }
+
+  isMarieeService(srv: ServiceRendezVousDto): boolean {
+    return this.MARIEE_SERVICE_TYPES.includes(srv.typeService as TypeService);
+  }
+
+  canTerminerMariee(rdv: RendezVousResponse): boolean {
+    // Show RDV-level "Terminer" only when all services are Mariée-type (no employees)
+    return rdv.typeClient === TypeClient.MARIAGE
+      && rdv.services.length > 0
+      && rdv.services.every(s => this.isMarieeService(s))
+      && rdv.statut !== StatutRendezVous.TERMINE
+      && rdv.statut !== StatutRendezVous.ANNULE;
+  }
+
+  terminerRdvMariee(rdv: RendezVousResponse) {
+    this.rendezVousService.changerStatut(rdv.id, StatutRendezVous.TERMINE).subscribe({
+      next: (updated) => {
+        this.allRdv.update(list => list.map(r => r.id === updated.id ? updated : r));
+        this.showToast(`RDV de ${rdv.prenomClient} ${rdv.nomClient} terminé.`, 'success');
+      },
+      error: () => this.showToast('Erreur lors de la mise à jour du statut.', 'error')
+    });
+  }
+
+  changerStatutService(serviceId: number, statut: StatutService, rdvId: number) {
+    this.rendezVousService.changerStatutService(serviceId, statut).subscribe({
+      next: (updatedRdv) => {
+        this.allRdv.update(list => list.map(r => r.id === rdvId ? updatedRdv : r));
+        this.showToast('Statut du service mis à jour.', 'success');
+      },
+      error: () => this.showToast('Erreur lors de la mise à jour du service.', 'error')
+    });
   }
 
   // ── Modal Create ─────────────────────────────────────────────
@@ -447,8 +635,12 @@ export class AdminDashboardComponent implements OnInit {
   submitEdit() {
     const user = this.selectedUser();
     if (!user) return;
-    if (!this.editForm.nom || !this.editForm.prenom || !this.editForm.email) {
-      this.modalError.set('Nom, prénom et email sont obligatoires.');
+    if (!this.editForm.password) {
+      this.modalError.set('Veuillez saisir un nouveau mot de passe.');
+      return;
+    }
+    if (this.editForm.password.length < 6) {
+      this.modalError.set('Le mot de passe doit contenir au moins 6 caractères.');
       return;
     }
 
@@ -456,8 +648,7 @@ export class AdminDashboardComponent implements OnInit {
     this.modalError.set('');
 
     const request: UpdateUserRequest = {
-      ...this.editForm,
-      password: this.editForm.password || undefined
+      password: this.editForm.password
     };
 
     this.userService.updateUser(user.id, request).subscribe({
@@ -465,7 +656,7 @@ export class AdminDashboardComponent implements OnInit {
         this.modalLoading.set(false);
         this.closeModal();
         this.users.update(list => list.map(u => u.id === updated.id ? updated : u));
-        this.showToast('Profil mis à jour avec succès !', 'success');
+        this.showToast('Mot de passe mis à jour avec succès !', 'success');
       },
       error: (err: Error) => {
         this.modalLoading.set(false);
@@ -511,6 +702,11 @@ export class AdminDashboardComponent implements OnInit {
   getSpecialitesLabels(specialites?: string[]): string {
     if (!specialites || specialites.length === 0) return '—';
     return specialites.map(s => this.specialiteLabels[s] ?? s).join(', ');
+  }
+
+  getSpecialiteLabel(specialite: string | null | undefined): string {
+    if (!specialite) return '—';
+    return this.specialiteLabels[specialite] ?? specialite;
   }
 
   getRoleLabel(role: Role): string {
@@ -571,6 +767,11 @@ export class AdminDashboardComponent implements OnInit {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
+  }
+
+  formatTime(dateStr: string): string {
+    if (!dateStr || /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return '';
+    return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
 
   getClientInitials(rdv: RendezVousResponse): string {

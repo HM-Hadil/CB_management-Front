@@ -552,7 +552,15 @@
                     <div class="stock-card__meta">
                       <span class="meta-item"><i class="pi pi-tag"></i> Réf: {{ produit.reference || '—' }}</span>
                       <span class="meta-item"><i class="pi pi-box"></i> {{ CATEGORIE_STOCK_LABELS[produit.categorie] }}</span>
+                      @if (produit.unite) {
+                        <span class="meta-item"><i class="pi pi-ruler"></i> {{ produit.unite }}</span>
+                      }
                     </div>
+                    @if (produit.nomFournisseur) {
+                      <div class="stock-card__fournisseur">
+                        <i class="pi pi-building"></i> {{ produit.nomFournisseur }}
+                      </div>
+                    }
                   </div>
 
                   <!-- Quantity selector (only when selected) -->

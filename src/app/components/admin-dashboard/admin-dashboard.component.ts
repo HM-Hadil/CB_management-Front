@@ -340,7 +340,15 @@ export class AdminDashboardComponent implements OnInit {
 
   barChartYTicks = computed(() => {
     const max = this.barChartMax();
-    return [max, Math.round(max * 0.75), Math.round(max * 0.5), Math.round(max * 0.25), 0];
+    if (max <= 5) {
+      // Show every integer from max down to 0, no duplicates
+      return Array.from({ length: max + 1 }, (_, i) => max - i);
+    }
+    const step = Math.ceil(max / 4);
+    const ticks: number[] = [];
+    for (let v = max; v > 0; v -= step) ticks.push(v);
+    if (ticks[ticks.length - 1] !== 0) ticks.push(0);
+    return ticks;
   });
 
   totalPresenceJours = computed(() =>

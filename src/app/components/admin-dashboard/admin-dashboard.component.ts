@@ -249,7 +249,7 @@ export class AdminDashboardComponent implements OnInit {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
   });
-  rdvMariageCount            = computed(() => this.rdvPeriodFiltered().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvMariageCount            = computed(() => this.rdvPeriodFiltered().filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId)).length);
   rdvNormalCount             = computed(() => this.rdvPeriodFiltered().filter(r => r.typeClient === TypeClient.NORMAL).length);
   rdvMariageAvecServicesCount = computed(() => this.rdvPeriodFiltered().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
 

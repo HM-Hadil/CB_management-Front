@@ -146,6 +146,7 @@ export class EmployeeDashboardComponent implements OnInit {
     const q  = this.planningSearch().toLowerCase().trim();
     if (st !== 'ALL') list = list.filter(r => r.statut === st);
     if (tc === TypeClient.NORMAL) list = list.filter(r => r.typeClient === TypeClient.NORMAL);
+    else if (tc === TypeClient.MARIAGE) list = list.filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId));
     else if (tc === 'MARIAGE_SERVICES') list = list.filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId));
     if (q) list = list.filter(r =>
       r.nomClient.toLowerCase().includes(q) ||
@@ -168,6 +169,7 @@ export class EmployeeDashboardComponent implements OnInit {
 
     if (st !== 'ALL') rdvList = rdvList.filter(r => r.statut === st);
     if (tc === TypeClient.NORMAL) rdvList = rdvList.filter(r => r.typeClient === TypeClient.NORMAL);
+    else if (tc === TypeClient.MARIAGE) rdvList = rdvList.filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId));
     else if (tc === 'MARIAGE_SERVICES') rdvList = rdvList.filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId));
     if (q) rdvList = rdvList.filter(r =>
       r.nomClient.toLowerCase().includes(q) ||
@@ -246,7 +248,7 @@ export class EmployeeDashboardComponent implements OnInit {
   rdvConfirme  = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
   rdvAnnule    = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.ANNULE).length);
   rdvTermine   = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.TERMINE).length);
-  rdvMariage            = computed(() => this.planningBaseList().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvMariage            = computed(() => this.planningBaseList().filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId)).length);
   rdvMariageAvecServices = computed(() => this.planningBaseList().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
 
   constructor(

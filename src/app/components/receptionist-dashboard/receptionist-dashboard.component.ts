@@ -388,7 +388,11 @@ export class ReceptionistDashboardComponent implements OnInit {
             include = true;
           }
         }
-        if (include) rows.push({ rdv, services, date });
+        if (include) {
+          // Pour "Mariée + Services", n'inclure que les rows ayant au moins un service avec employé
+          if (tc === 'MARIAGE_SERVICES' && !services.some(s => s.employeeId)) continue;
+          rows.push({ rdv, services, date });
+        }
       }
     }
 
@@ -400,7 +404,7 @@ export class ReceptionistDashboardComponent implements OnInit {
   });
 
   totalRdv                    = computed(() => this.rdvBaseList().length);
-  rdvMariageCount             = computed(() => this.rdvBaseList().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvMariageCount             = computed(() => this.rdvBaseList().filter(r => r.typeClient === TypeClient.MARIAGE && !r.services.some(s => s.employeeId)).length);
   rdvMariageAvecServicesCount = computed(() => this.rdvBaseList().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
   rdvEnAttente = computed(() => this.rdvBaseList().filter(r => r.statut === StatutRendezVous.EN_ATTENTE).length);
   rdvConfirme  = computed(() => this.rdvBaseList().filter(r => r.statut === StatutRendezVous.CONFIRME).length);

@@ -249,9 +249,9 @@ export class AdminDashboardComponent implements OnInit {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
   });
-  rdvMariageCount            = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.MARIAGE).length);
-  rdvNormalCount             = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.NORMAL).length);
-  rdvMariageAvecServicesCount = computed(() => this.allRdv().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
+  rdvMariageCount            = computed(() => this.rdvPeriodFiltered().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvNormalCount             = computed(() => this.rdvPeriodFiltered().filter(r => r.typeClient === TypeClient.NORMAL).length);
+  rdvMariageAvecServicesCount = computed(() => this.rdvPeriodFiltered().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
 
   // Status counts filtered by current period/date selection
   private rdvPeriodFiltered = computed(() => {
@@ -417,13 +417,6 @@ export class AdminDashboardComponent implements OnInit {
   StatutMariee = StatutMariee;
   TypeClient = TypeClient;
 
-  readonly MARIEE_SERVICE_TYPES: TypeService[] = [
-    TypeService.MAQUILLAGE_SDAG,
-    TypeService.MAQUILLAGE_HENNA,
-    TypeService.MAQUILLAGE_BADOU,
-    TypeService.MAQUILLAGE_D5OUL,
-    TypeService.MAQUILLAGE_FIANCAILLES,
-  ];
 
   constructor(
     private userService: UserService,
@@ -541,38 +534,6 @@ export class AdminDashboardComponent implements OnInit {
     this.selectedRdv.set(null);
   }
 
-  isMarieeService(srv: ServiceRendezVousDto): boolean {
-    return this.MARIEE_SERVICE_TYPES.includes(srv.typeService as TypeService);
-  }
-
-  canTerminerMariee(rdv: RendezVousResponse): boolean {
-    // Show RDV-level "Terminer" only when all services are Mariée-type (no employees)
-    return rdv.typeClient === TypeClient.MARIAGE
-      && rdv.services.length > 0
-      && rdv.services.every(s => this.isMarieeService(s))
-      && rdv.statut !== StatutRendezVous.TERMINE
-      && rdv.statut !== StatutRendezVous.ANNULE;
-  }
-
-  terminerRdvMariee(rdv: RendezVousResponse) {
-    this.rendezVousService.changerStatut(rdv.id, StatutRendezVous.TERMINE).subscribe({
-      next: (updated) => {
-        this.allRdv.update(list => list.map(r => r.id === updated.id ? updated : r));
-        this.showToast(`RDV de ${rdv.prenomClient} ${rdv.nomClient} terminé.`, 'success');
-      },
-      error: () => this.showToast('Erreur lors de la mise à jour du statut.', 'error')
-    });
-  }
-
-  changerStatutService(serviceId: number, statut: StatutService, rdvId: number) {
-    this.rendezVousService.changerStatutService(serviceId, statut).subscribe({
-      next: (updatedRdv) => {
-        this.allRdv.update(list => list.map(r => r.id === rdvId ? updatedRdv : r));
-        this.showToast('Statut du service mis à jour.', 'success');
-      },
-      error: () => this.showToast('Erreur lors de la mise à jour du service.', 'error')
-    });
-  }
 
   // ── Modal Create ─────────────────────────────────────────────
   openCreateModal(role?: Role) {

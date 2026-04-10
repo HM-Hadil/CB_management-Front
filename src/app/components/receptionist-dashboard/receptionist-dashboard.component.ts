@@ -199,6 +199,14 @@ export class ReceptionistDashboardComponent implements OnInit {
     TypeService.MAQUILLAGE_FIANCAILLES
   ];
 
+  readonly MARIEE_SERVICE_DUREE: Partial<Record<TypeService, number>> = {
+    [TypeService.MAQUILLAGE_SDAG]:        120,
+    [TypeService.MAQUILLAGE_HENNA]:       120,
+    [TypeService.MAQUILLAGE_BADOU]:        90,
+    [TypeService.MAQUILLAGE_D5OUL]:       120,
+    [TypeService.MAQUILLAGE_FIANCAILLES]:  90,
+  };
+
   // ── Stock state ───────────────────────────────────────────────
   produits = signal<ProduitStockDto[]>([]);
   stockLoading = signal(false);
@@ -391,10 +399,10 @@ export class ReceptionistDashboardComponent implements OnInit {
     });
   });
 
-  totalRdv                    = computed(() => this.rendezVous().length);
-  rdvMariageCount             = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE).length);
-  rdvMariageAvecServicesCount = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
-  rdvEnAttente = computed(() => this.rendezVous().filter(r => r.statut === StatutRendezVous.EN_ATTENTE).length);
+  totalRdv                    = computed(() => this.rdvBaseList().length);
+  rdvMariageCount             = computed(() => this.rdvBaseList().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvMariageAvecServicesCount = computed(() => this.rdvBaseList().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
+  rdvEnAttente = computed(() => this.rdvBaseList().filter(r => r.statut === StatutRendezVous.EN_ATTENTE).length);
   rdvConfirme  = computed(() => this.rdvBaseList().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
   rdvAnnule    = computed(() => this.rdvBaseList().filter(r => r.statut === StatutRendezVous.ANNULE).length);
   rdvTermine   = computed(() => this.rdvBaseList().filter(r => r.statut === StatutRendezVous.TERMINE).length);
@@ -950,7 +958,12 @@ getPresenceStatutLabel(s: StatutPresence): string {
       },
       error: (err: any) => {
         this.rdvModalLoading.set(false);
-        this.rdvModalError.set(err.error?.message ?? err.message ?? 'Erreur lors de la création.');
+        const msg: string = err.error?.message ?? err.message ?? 'Erreur lors de la création.';
+        this.rdvModalError.set(msg);
+        // Si conflit d'employé, rafraîchir toutes les listes de disponibilité
+        if (msg.toLowerCase().includes('occupé') || msg.toLowerCase().includes('conflit')) {
+          this.refreshAllEmployeeAvailability();
+        }
       }
     });
   }
@@ -972,9 +985,19 @@ getPresenceStatutLabel(s: StatutPresence): string {
       },
       error: (err: any) => {
         this.rdvModalLoading.set(false);
-        this.rdvModalError.set(err.error?.message ?? err.message ?? 'Erreur lors de la modification.');
+        const msg: string = err.error?.message ?? err.message ?? 'Erreur lors de la modification.';
+        this.rdvModalError.set(msg);
+        if (msg.toLowerCase().includes('occupé') || msg.toLowerCase().includes('conflit')) {
+          this.refreshAllEmployeeAvailability();
+        }
       }
     });
+  }
+
+  /** Re-fetch available employees for all service rows (called after a conflict error). */
+  private refreshAllEmployeeAvailability(): void {
+    this.rdvForm.services.forEach((_, i) => this.fetchNormalServiceAllEmployees(i));
+    this.rdvForm.normaleServices.forEach((_, i) => this.fetchNormaleServiceAllMarieeEmployees(i));
   }
 
   private buildRequest(): RendezVousRequest {

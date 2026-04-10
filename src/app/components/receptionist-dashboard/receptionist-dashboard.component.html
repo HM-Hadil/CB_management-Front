@@ -355,204 +355,155 @@
               }
             </div>
           } @else {
-            <div class="table-wrapper">
-              <table class="rdv-table">
-                <thead>
-                  <tr>
-                    <th>Client</th>
-                    <th>Services</th>
-                    <th>Date & Heure</th>
-                    <th>Durée</th>
-                    <th>Code Robe</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (row of expandedRdvRows(); track row.rdv.id + '-' + row.date) {
-                    <tr [class.row-annule]="row.rdv.statut === StatutRendezVous.ANNULE"
-                        [class.row-termine]="row.rdv.statut === StatutRendezVous.TERMINE">
-                      <!-- Client -->
-                      <td data-label="Client">
-                        <div class="client-cell">
-                          <div class="client-avatar">{{ getClientInitials(row.rdv) }}</div>
-                          <div class="client-info">
-                            <span class="client-name">{{ row.rdv.prenomClient }} {{ row.rdv.nomClient }}</span>
-                            @if (row.rdv.telephoneClient) {
-                              <span class="client-phone"><i class="pi pi-phone"></i> {{ row.rdv.telephoneClient }}</span>
-                            }
-                            <span class="client-type-badge"
-                              [class.mariage]="row.rdv.typeClient === TypeClient.MARIAGE">
-                              {{ getTypeClientLabel(row.rdv.typeClient) }}
-                            </span>
-                            @if (row.rdv.typeClient === TypeClient.MARIAGE && row.rdv.statutMariee) {
-                              <span class="statut-mariee-badge"
-                                [class.voilee]="row.rdv.statutMariee === StatutMariee.VOILEE">
-                                {{ row.rdv.statutMariee === StatutMariee.VOILEE ? 'Voilée' : 'Non voilée' }}
-                              </span>
-                            }
-                          </div>
-                        </div>
-                      </td>
+            <div class="rdv-list">
+              @for (row of expandedRdvRows(); track row.rdv.id + '-' + row.date) {
 
-                      <!-- Services du jour -->
-                      <td data-label="Services">
-                        <div class="services-list">
-                          @for (srv of row.services; track srv.id) {
-                            <div class="service-item">
-                              <span class="service-name">{{ getTypeServiceLabel(srv.typeService) }}</span>
-                              @if (srv.employeeNom) {
-                                <span class="service-employee">
-                                  <i class="pi pi-user"></i> {{ srv.employeePrenom }} {{ srv.employeeNom }}
-                                </span>
-                              }
-                              @if (formatTime(srv.datePrevue ?? ''); as t) {
-                                <span class="service-time"><i class="pi pi-clock"></i> {{ t }}</span>
-                              }
-                              <span [class]="'statut-srv-badge statut-srv-badge--' + getStatutClass($any(srv.statut))">
-                                {{ getStatutLabel($any(srv.statut)) }}
-                              </span>
-                            </div>
-                          }
-                          @if (row.services.length === 0) {
-                            <span class="text-muted">—</span>
-                          }
-                        </div>
-                      </td>
+                <div class="rdv-card"
+                     [class.rdv-card--annule]="row.rdv.statut === StatutRendezVous.ANNULE"
+                     [class.rdv-card--termine]="row.rdv.statut === StatutRendezVous.TERMINE">
 
-                      <!-- Date -->
-                      <td data-label="Date & Heure">
-                        <span class="service-date">
-                          <i class="pi pi-calendar"></i> {{ formatDate(row.date) }}
-                        </span>
-                        @if (formatTime(row.rdv.dateDebut); as t) {
-                          <span class="service-time"><i class="pi pi-clock"></i> {{ t }}</span>
+                  <!-- ── En-tête de la carte ── -->
+                  <div class="rdv-card__header">
+
+                    <div class="client-cell">
+                      <div class="client-avatar">{{ getClientInitials(row.rdv) }}</div>
+                      <div class="client-info">
+                        <span class="client-name">{{ row.rdv.prenomClient }} {{ row.rdv.nomClient }}</span>
+                        @if (row.rdv.telephoneClient) {
+                          <span class="client-phone"><i class="pi pi-phone"></i> {{ row.rdv.telephoneClient }}</span>
                         }
-                      </td>
-
-                      <!-- Durée par service -->
-                      <td data-label="Durée">
-                        <div class="services-list">
-                          @for (srv of row.services; track srv.id) {
-                            <span class="duree-badge">
-                              <i class="pi pi-clock"></i> {{ formatDuree(srv.dureeService ?? 0) }}
+                        <div class="client-badges">
+                          <span class="client-type-badge" [class.mariage]="row.rdv.typeClient === TypeClient.MARIAGE">
+                            {{ getTypeClientLabel(row.rdv.typeClient) }}
+                          </span>
+                          @if (row.rdv.typeClient === TypeClient.MARIAGE && row.rdv.statutMariee) {
+                            <span class="statut-mariee-badge" [class.voilee]="row.rdv.statutMariee === StatutMariee.VOILEE">
+                              {{ row.rdv.statutMariee === StatutMariee.VOILEE ? 'Voilée' : 'Non voilée' }}
                             </span>
                           }
-                          @if (row.services.length === 0) { <span class="text-muted">—</span> }
                         </div>
-                      </td>
+                      </div>
+                    </div>
 
-                      <!-- Code Robe -->
-                      <td data-label="Code Robe">
-                        @for (srv of row.services; track srv.id) {
+                    <div class="rdv-card__date">
+                      <span class="rdv-date-pill"><i class="pi pi-calendar"></i> {{ formatDate(row.date) }}</span>
+                      @if (formatTime(row.rdv.dateDebut); as t) {
+                        <span class="rdv-time-pill"><i class="pi pi-clock"></i> {{ t }}</span>
+                      }
+                    </div>
+
+                    <div class="rdv-card__status">
+                      <span [class]="'statut-badge statut-badge--' + getStatutClass(row.rdv.statut)">
+                        {{ getStatutLabel(row.rdv.statut) }}
+                      </span>
+                      @if (getRdvNote(row.rdv.id); as note) {
+                        <div class="rdv-stars-row">
+                          @for (s of getStarsArray(note); track s) {
+                            <i [class]="s <= note ? 'pi pi-star-fill star-filled' : 'pi pi-star star-empty'"></i>
+                          }
+                          <span class="rdv-note-val">{{ note }}/5</span>
+                        </div>
+                      }
+                    </div>
+
+                    <div class="rdv-card__global-actions">
+                      @if (row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
+                        @if (canEdit(row.rdv)) {
+                          <button class="action-btn action-btn--edit" (click)="openEditModal(row.rdv)" title="Modifier">
+                            <i class="pi pi-pencil"></i>
+                          </button>
+                        }
+                      }
+                      @if (row.rdv.statut === StatutRendezVous.TERMINE && !rdvHasAvis(row.rdv.id)) {
+                        <button class="action-btn action-btn--avis" (click)="openAddAvisModal(row.rdv)" title="Ajouter un avis">
+                          <i class="pi pi-star"></i>
+                        </button>
+                      }
+                      <button class="action-btn action-btn--delete" (click)="confirmDelete(row.rdv.id)" title="Supprimer">
+                        <i class="pi pi-trash"></i>
+                      </button>
+                    </div>
+
+                  </div><!-- /rdv-card__header -->
+
+                  <!-- ── Lignes de services ── -->
+                  @if (row.services.length > 0) {
+                    <div class="rdv-card__services">
+                      @for (srv of row.services; track srv.id) {
+                        <div class="srv-row">
+                          <span class="srv-name">{{ getTypeServiceLabel(srv.typeService) }}</span>
+                          @if (srv.employeeNom) {
+                            <span class="srv-employee"><i class="pi pi-user"></i> {{ srv.employeePrenom }} {{ srv.employeeNom }}</span>
+                          }
+                          @if (formatTime(srv.datePrevue ?? ''); as t) {
+                            <span class="srv-time"><i class="pi pi-clock"></i> {{ t }}</span>
+                          }
+                          @if (srv.dureeService) {
+                            <span class="duree-badge"><i class="pi pi-hourglass"></i> {{ formatDuree(srv.dureeService) }}</span>
+                          }
                           @if (srv.codeRobe) {
-                            <span class="service-code-robe"><i class="pi pi-tag"></i> {{ srv.codeRobe }}</span>
+                            <span class="srv-robe"><i class="pi pi-tag"></i> {{ srv.codeRobe }}</span>
                           }
-                        }
-                      </td>
-
-                      <!-- Statut -->
-                      <td data-label="Statut">
-                        <span [class]="'statut-badge statut-badge--' + getStatutClass(row.rdv.statut)">
-                          {{ getStatutLabel(row.rdv.statut) }}
-                        </span>
-                        @if (getRdvNote(row.rdv.id); as note) {
-                          <div class="rdv-stars-row">
-                            @for (s of getStarsArray(note); track s) {
-                              <i [class]="s <= note ? 'pi pi-star-fill star-filled' : 'pi pi-star star-empty'"></i>
-                            }
-                            <span class="rdv-note-val">{{ note }}/5</span>
-                          </div>
-                        }
-                      </td>
-
-                      <!-- Actions -->
-                      <td data-label="Actions">
-                        <div class="action-btns">
-                          @if (row.rdv.statut !== StatutRendezVous.TERMINE) {
-                            @if (canEdit(row.rdv)) {
-                              <button class="action-btn action-btn--edit" (click)="openEditModal(row.rdv)" title="Modifier">
-                                <i class="pi pi-pencil"></i>
-                              </button>
-                            }
-                            <!-- Service-specific actions -->
-                            @for (srv of row.services; track srv.id) {
-                              <div class="service-actions">
-                                <div class="service-btns">
-                                  @if (srv.statut === StatutService.EN_ATTENTE) {
-                                    <button class="action-btn action-btn--confirm action-btn--small"
-                                      (click)="changerStatutService(srv.id, StatutService.CONFIRME)"
-                                      title="Confirmer ce service">
-                                      <i class="pi pi-check"></i>
-                                    </button>
-                                  }
-                                  @if (srv.statut !== StatutService.ANNULE && srv.statut !== StatutService.TERMINE) {
-                                    <button class="action-btn action-btn--cancel action-btn--small"
-                                      (click)="changerStatutService(srv.id, StatutService.ANNULE)"
-                                      title="Annuler ce service">
-                                      <i class="pi pi-times"></i>
-                                    </button>
-                                  }
-                                </div>
-                              </div>
-                            }
-                            @if (row.services.length === 0) {
-                              @if (row.rdv.statut === StatutRendezVous.EN_ATTENTE) {
-                                <button class="action-btn action-btn--confirm"
-                                  (click)="changerStatut(row.rdv.id, StatutRendezVous.CONFIRME)"
-                                  title="Confirmer">
+                          <span [class]="'statut-srv-badge statut-srv-badge--' + getStatutClass($any(srv.statut))">
+                            {{ getStatutLabel($any(srv.statut)) }}
+                          </span>
+                          @if (row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
+                            <div class="srv-actions">
+                              @if (srv.statut === StatutService.EN_ATTENTE) {
+                                <button class="action-btn action-btn--confirm action-btn--sm"
+                                  (click)="changerStatutService(srv.id, StatutService.CONFIRME)"
+                                  title="Confirmer ce service">
                                   <i class="pi pi-check"></i>
                                 </button>
                               }
-                              @if (row.rdv.statut !== StatutRendezVous.ANNULE) {
-                                <button class="action-btn action-btn--cancel"
-                                  (click)="changerStatut(row.rdv.id, StatutRendezVous.ANNULE)"
-                                  title="Annuler">
+                              @if (srv.statut !== StatutService.ANNULE && srv.statut !== StatutService.TERMINE) {
+                                <button class="action-btn action-btn--cancel action-btn--sm"
+                                  (click)="changerStatutService(srv.id, StatutService.ANNULE)"
+                                  title="Annuler ce service">
                                   <i class="pi pi-times"></i>
                                 </button>
                               }
-                            }
-                          }
-                          @if (row.rdv.statut === StatutRendezVous.TERMINE) {
-                            @if (!rdvHasAvis(row.rdv.id)) {
-                              <button class="action-btn action-btn--avis"
-                                (click)="openAddAvisModal(row.rdv)" title="Ajouter un avis">
-                                <i class="pi pi-star"></i>
-                              </button>
-                            }
-                          }
-                          <button class="action-btn action-btn--delete"
-                            (click)="confirmDelete(row.rdv.id)" title="Supprimer">
-                            <i class="pi pi-trash"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-
-                    <!-- Delete confirm row -->
-                    @if (deleteConfirmId() === row.rdv.id) {
-                      <tr class="confirm-row">
-                        <td colspan="6">
-                          <div class="confirm-delete">
-                            <i class="pi pi-exclamation-triangle"></i>
-                            <span>Supprimer définitivement le rendez-vous de
-                              <strong>{{ row.rdv.prenomClient }} {{ row.rdv.nomClient }}</strong> ?
-                            </span>
-                            <div class="confirm-actions">
-                              <button class="confirm-yes" (click)="deleteRdv(row.rdv.id)">
-                                <i class="pi pi-check"></i> Supprimer
-                              </button>
-                              <button class="confirm-no" (click)="cancelDelete()">
-                                <i class="pi pi-times"></i> Annuler
-                              </button>
                             </div>
-                          </div>
-                        </td>
-                      </tr>
-                    }
+                          }
+                        </div>
+                      }
+                    </div>
+                  } @else if (row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
+                    <div class="rdv-card__services rdv-card__no-services">
+                      @if (row.rdv.statut === StatutRendezVous.EN_ATTENTE) {
+                        <button class="action-btn action-btn--confirm"
+                          (click)="changerStatut(row.rdv.id, StatutRendezVous.CONFIRME)" title="Confirmer">
+                          <i class="pi pi-check"></i> Confirmer
+                        </button>
+                      }
+                      <button class="action-btn action-btn--cancel"
+                        (click)="changerStatut(row.rdv.id, StatutRendezVous.ANNULE)" title="Annuler">
+                        <i class="pi pi-times"></i> Annuler
+                      </button>
+                    </div>
                   }
-                </tbody>
-              </table>
+
+                </div><!-- /rdv-card -->
+
+                <!-- Confirmation suppression -->
+                @if (deleteConfirmId() === row.rdv.id) {
+                  <div class="confirm-delete">
+                    <i class="pi pi-exclamation-triangle"></i>
+                    <span>Supprimer définitivement le rendez-vous de
+                      <strong>{{ row.rdv.prenomClient }} {{ row.rdv.nomClient }}</strong> ?
+                    </span>
+                    <div class="confirm-actions">
+                      <button class="confirm-yes" (click)="deleteRdv(row.rdv.id)">
+                        <i class="pi pi-check"></i> Supprimer
+                      </button>
+                      <button class="confirm-no" (click)="cancelDelete()">
+                        <i class="pi pi-times"></i> Annuler
+                      </button>
+                    </div>
+                  </div>
+                }
+
+              }
             </div>
           }
         </div>
@@ -1603,6 +1554,12 @@
                         <option [value]="ts">{{ getTypeServiceLabel(ts) }}</option>
                       }
                     </select>
+                    @if (srv.typeService && MARIEE_SERVICE_DUREE[srv.typeService]) {
+                      <div class="mariee-duree-hint">
+                        <i class="pi pi-clock"></i>
+                        Durée : <strong>{{ formatDuree(MARIEE_SERVICE_DUREE[srv.typeService]!) }}</strong>
+                      </div>
+                    }
                   </div>
                   <div class="modal-form-grid">
                     <div class="modal-form-group">

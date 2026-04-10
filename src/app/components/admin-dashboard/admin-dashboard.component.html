@@ -498,13 +498,6 @@
                                 {{ srv.employeePrenom }} {{ srv.employeeNom }}
                               </span>
                             }
-                            @if (isMarieeService(srv) && srv.statut !== StatutService.TERMINE && srv.statut !== StatutService.ANNULE && row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
-                              <button class="btn-terminer-srv"
-                                (click)="changerStatutService(srv.id, StatutService.TERMINE, row.rdv.id); $event.stopPropagation()"
-                                title="Terminer ce service">
-                                <i class="pi pi-check-circle"></i> Terminer
-                              </button>
-                            }
                           </div>
                         }
                         @if (row.services.length === 0) {
@@ -557,11 +550,6 @@
                           }
                           <span class="rdv-note-val">{{ note }}/5</span>
                         </div>
-                      }
-                      @if (canTerminerMariee(row.rdv)) {
-                        <button class="btn-terminer-mariee" (click)="terminerRdvMariee(row.rdv); $event.stopPropagation()">
-                          <i class="pi pi-check-circle"></i> Terminer
-                        </button>
                       }
                     </td>
 

@@ -246,8 +246,8 @@ export class EmployeeDashboardComponent implements OnInit {
   rdvConfirme  = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.CONFIRME).length);
   rdvAnnule    = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.ANNULE).length);
   rdvTermine   = computed(() => this.planningBaseList().filter(r => r.statut === StatutRendezVous.TERMINE).length);
-  rdvMariage            = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE).length);
-  rdvMariageAvecServices = computed(() => this.rendezVous().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
+  rdvMariage            = computed(() => this.planningBaseList().filter(r => r.typeClient === TypeClient.MARIAGE).length);
+  rdvMariageAvecServices = computed(() => this.planningBaseList().filter(r => r.typeClient === TypeClient.MARIAGE && r.services.some(s => s.employeeId)).length);
 
   constructor(
     public authService: AuthService,
@@ -488,6 +488,22 @@ export class EmployeeDashboardComponent implements OnInit {
 
   getStatutClass(s: StatutRendezVous): string {
     const m: Record<StatutRendezVous, string> = {
+      EN_ATTENTE: 'en-attente', CONFIRME: 'confirme',
+      EN_COURS: 'en-cours', ANNULE: 'annule', TERMINE: 'termine'
+    };
+    return m[s];
+  }
+
+  getServiceStatutLabel(s: StatutService): string {
+    const m: Record<StatutService, string> = {
+      EN_ATTENTE: 'En attente', CONFIRME: 'Confirmé',
+      EN_COURS: 'En cours', ANNULE: 'Annulé', TERMINE: 'Terminé'
+    };
+    return m[s];
+  }
+
+  getServiceStatutClass(s: StatutService): string {
+    const m: Record<StatutService, string> = {
       EN_ATTENTE: 'en-attente', CONFIRME: 'confirme',
       EN_COURS: 'en-cours', ANNULE: 'annule', TERMINE: 'termine'
     };

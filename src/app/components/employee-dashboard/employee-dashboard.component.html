@@ -419,6 +419,21 @@
                               @if (srv.dureeService) {
                                 <span class="pduree-inline"><i class="pi pi-hourglass"></i> {{ formatDuree(srv.dureeService) }}</span>
                               }
+                              <span [class]="'psrv-statut-badge psrv-statut--' + getServiceStatutClass(srv.statut)">
+                                {{ getServiceStatutLabel(srv.statut) }}
+                              </span>
+                              @if (row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
+                                @if (srv.statut === StatutService.CONFIRME) {
+                                  <button class="action-btn-commencer action-btn--small" (click)="commencerService(srv.id)" title="Commencer ce service">
+                                    <i class="pi pi-play"></i>
+                                  </button>
+                                }
+                                @if (srv.statut === StatutService.CONFIRME || srv.statut === StatutService.EN_COURS) {
+                                  <button class="action-btn-termine action-btn--small" (click)="terminerService(srv.id)" title="Terminer ce service">
+                                    <i class="pi pi-check-circle"></i>
+                                  </button>
+                                }
+                              }
                             </div>
                           }
                           @if (row.services.length === 0) {
@@ -452,34 +467,22 @@
                           </div>
                         }
                       </td>
-                      <!-- Actions -->
+                      <!-- Actions (RDV sans services assignés) -->
                       <td>
-                        <div class="action-btns-emp">
-                          @if (row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
-                            @for (srv of row.services; track srv.id) {
-                              @if (srv.employeeId === profile()?.id) {
-                                <div class="service-btns">
-                                  <button class="action-btn-commencer action-btn--small" (click)="commencerService(srv.id)" title="Commencer ce service">
-                                    <i class="pi pi-play"></i>
-                                  </button>
-                                  <button class="action-btn-termine action-btn--small" (click)="terminerService(srv.id)" title="Terminer ce service">
-                                    <i class="pi pi-check-circle"></i>
-                                  </button>
-                                </div>
-                              }
+                        @if ((row.services.length === 0 || !hasAssignedServices(row.rdv)) && row.rdv.statut !== StatutRendezVous.TERMINE && row.rdv.statut !== StatutRendezVous.ANNULE) {
+                          <div class="service-btns">
+                            @if (row.rdv.statut === StatutRendezVous.CONFIRME) {
+                              <button class="action-btn-commencer" (click)="commencerRdv(row.rdv)" title="Commencer le rendez-vous">
+                                <i class="pi pi-play"></i>
+                              </button>
                             }
-                            @if (row.services.length === 0 || !hasAssignedServices(row.rdv)) {
-                              <div class="service-btns">
-                                <button class="action-btn-commencer" (click)="commencerRdv(row.rdv)" title="Commencer le rendez-vous">
-                                  <i class="pi pi-play"></i>
-                                </button>
-                                <button class="action-btn-termine" (click)="terminerRdv(row.rdv)" title="Terminer le rendez-vous">
-                                  <i class="pi pi-check-circle"></i>
-                                </button>
-                              </div>
+                            @if (row.rdv.statut === StatutRendezVous.CONFIRME || row.rdv.statut === StatutRendezVous.EN_COURS) {
+                              <button class="action-btn-termine" (click)="terminerRdv(row.rdv)" title="Terminer le rendez-vous">
+                                <i class="pi pi-check-circle"></i>
+                              </button>
                             }
-                          }
-                        </div>
+                          </div>
+                        }
                       </td>
                     </tr>
                   }
@@ -549,18 +552,32 @@
                   <!-- Main info -->
                   <div class="stock-card__info">
                     <div class="stock-card__nom">{{ produit.nom }}</div>
-                    <div class="stock-card__meta">
-                      <span class="meta-item"><i class="pi pi-tag"></i> Réf: {{ produit.reference || '—' }}</span>
-                      <span class="meta-item"><i class="pi pi-box"></i> {{ CATEGORIE_STOCK_LABELS[produit.categorie] }}</span>
+
+                    <div class="stock-card__attrs">
+                      <div class="attr-row">
+                        <span class="attr-label"><i class="pi pi-list"></i> Catégorie</span>
+                        <span class="attr-value">{{ CATEGORIE_STOCK_LABELS[produit.categorie] }}</span>
+                      </div>
                       @if (produit.unite) {
-                        <span class="meta-item"><i class="pi pi-ruler"></i> {{ produit.unite }}</span>
+                        <div class="attr-row">
+                          <span class="attr-label"><i class="pi pi-ruler"></i> Unité</span>
+                          <span class="attr-value">{{ produit.unite }}</span>
+                        </div>
+                      }
+
+                      @if (produit.reference) {
+                        <div class="attr-row">
+                          <span class="attr-label"><i class="pi pi-tag"></i> Référence</span>
+                          <span class="attr-value">{{ produit.reference }}</span>
+                        </div>
+                      }
+                      @if (produit.nomFournisseur) {
+                        <div class="attr-row">
+                          <span class="attr-label"><i class="pi pi-building"></i> Fournisseur</span>
+                          <span class="attr-value">{{ produit.nomFournisseur }}</span>
+                        </div>
                       }
                     </div>
-                    @if (produit.nomFournisseur) {
-                      <div class="stock-card__fournisseur">
-                        <i class="pi pi-building"></i> {{ produit.nomFournisseur }}
-                      </div>
-                    }
                   </div>
 
                   <!-- Quantity selector (only when selected) -->
